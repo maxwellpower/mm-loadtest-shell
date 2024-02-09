@@ -6,7 +6,7 @@ This Dockerized shell provides an easy-to-use environment for running Mattermost
 
 1. **Run the Container:**
    ```sh
-   docker run --rm -dit --name mmlt github.io/maxwellpower/mm-loadtest-shell
+   docker run --rm -dit --name mmlt ghcr.io/maxwellpower/mm-loadtest-shell
    ```
    This command runs the container in detached mode, allowing you to attach to it whenever you're ready to start load testing.
 
@@ -21,7 +21,7 @@ This Dockerized shell provides an easy-to-use environment for running Mattermost
 The container uses a `/mmlt/config` volume for configuration files, which is not persisted across container restarts. To retain your configurations, mount a local directory to this volume:
 
 ```sh
-docker run --rm -dit -v /path/to/your/config:/mmlt/config --name mmlt github.io/maxwellpower/mm-loadtest-shell
+docker run --rm -dit -v /path/to/your/config:/mmlt/config --name mmlt ghcr.io/maxwellpower/mm-loadtest-shell
 ```
 
 Replace `/path/to/your/config` with the path to your local configuration directory. This setup allows you to modify and reuse your configurations easily.
