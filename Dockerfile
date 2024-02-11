@@ -16,32 +16,48 @@
 FROM alpine AS builder
 
 # Install necessary packages
-ENV TERRAFORM_VERSION=1.7.3
+RUN apk add --no-cache curl unzip git jq
 
-RUN apk add --no-cache curl unzip git \
-    # Download and unzip Terraform
-    && curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip \
-    && unzip terraform_${TERRAFORM_VERSION}_linux_amd64.zip -d /terraform \
-    # Clone the Mattermost Load Test NG repository
-    && git clone --depth=1 --no-tags https://github.com/mattermost/mattermost-load-test-ng.git /mmlt
+COPY .docker /build
+WORKDIR /build
+
+RUN chmod -R +x /build
+
+# Install Terraform
+RUN ./buildTerraform
+
+# Clone the Mattermost Load Test NG repository
+RUN git clone --depth=1 --no-tags https://github.com/mattermost/mattermost-load-test-ng.git /mmlt
+RUN rm -rf /mmlt/.git
+RUN rm -rf /mmlt/.github
+RUN cp -r /mmlt/config/ /mmlt/config.default
 
 # Final stage
-FROM golang:alpine
+FROM golang:alpine as final
+
+LABEL MAINTAINER="maxwell.power@mattermost.com"
+LABEL org.opencontainers.image.title="mm-loadtest-shell"
+LABEL org.opencontainers.image.description="Mattermost Load Test Shell"
+LABEL org.opencontainers.image.authors="Maxwell Power"
+LABEL org.opencontainers.image.source="https://github.com/maxwellpower/mm-loadtest-shell"
+LABEL org.opencontainers.image.licenses=MIT
 
 # Install bash for the entrypoint
-RUN apk add --no-cache bash
+RUN apk add --no-cache zsh openssh \
+&& ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
 
 # Copy Terraform binary and cloned repository from the builder stage
 COPY --from=builder /terraform/terraform /usr/local/bin/terraform
 COPY --from=builder /mmlt /mmlt
+COPY --from=builder /build/entrypoint /usr/local/bin/docker-entrypoint
 
 # Set the working directory inside the container
 WORKDIR /mmlt
 
-RUN go run ./cmd/ltctl loadtest
+RUN go run ./cmd/ltctl loadtest init
 
 # Volume to store and persist data
 VOLUME ["/mmlt/config"]
 
-ENTRYPOINT ["/bin/bash"]
-
+ENTRYPOINT ["docker-entrypoint"]
+CMD ["/bin/zsh"]
