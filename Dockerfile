@@ -43,7 +43,7 @@ LABEL org.opencontainers.image.source="https://github.com/maxwellpower/mm-loadte
 LABEL org.opencontainers.image.licenses=MIT
 
 # Install bash for the entrypoint
-RUN apk add --no-cache zsh openssh \
+RUN apk add --no-cache zsh openssh nano \
 && ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
 
 # Copy Terraform binary and cloned repository from the builder stage
