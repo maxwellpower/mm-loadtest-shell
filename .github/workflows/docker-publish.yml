@@ -18,11 +18,11 @@ name: Build and Publish Docker Container
 
 on:
   push:
-    branches: [ "main" ]
-    tags: [ 'v*.*.*', 'latest' ]
+    branches: ["main"]
+    tags: ["v*.*.*", "latest"]
   pull_request:
-    branches: [ "main" ]
-  workflow_dispatch:  # Allow manual triggering
+    branches: ["main"]
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
@@ -56,16 +56,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: go-mod-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            go-mod-
-
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -75,14 +65,6 @@ jobs:
             type=ref,event=tag,enable=${{ endsWith(github.ref, 'tags/latest') }}
             type=sha
             type=ref,event=branch,exclude=latest
-
-      - name: Cache Docker layers
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
 
       - name: Build and push Docker image
         id: build-and-push
@@ -95,9 +77,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Post-build cleanup
-        if: always()
-        run: |
-          docker system prune -f
-          rm -rf /tmp/.buildx-cache

@@ -54,9 +54,10 @@ function _setTerraformCredentials {
     # Check if the credentials file exists
     if [ -f /mmlt/config/credentials ]; then
         echo "Credentials file found. Using the credentials file."
-        export MMLT_CREDENTIALS=true
+        export MMLT_AWS_CREDENTIALS=true
     else
         echo "No credentials found. Please provide a credentials file."
+        export MMLT_AWS_CREDENTIALS=false
         cat <<EOL >/mmlt/config/credentials
 [mm-loadtest]
 aws_access_key_id=

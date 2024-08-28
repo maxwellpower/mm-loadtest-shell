@@ -14,21 +14,21 @@
 # AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-# File: runLoadTest
+# File: bin/runLoadTest
 
 # Trap SIGINT (Ctrl+C) to prevent the script from being killed
 trap ctrl_c INT
 
 function ctrl_c() {
   clear
-  echo -e "\n\033[1;31mDetected Ctrl+C. Use the menu option to exit the script properly.\n\033[0m"
-  show_menu
+  echo -e "\n\033[1;31mDetected Ctrl+C. Use the menu option to exit the script properly.\n Press any key to continue ...\033[0m"
 }
 
 LOCKFILE="/tmp/loadtest.lock"
 
 if [ -f "$LOCKFILE" ]; then
-  echo -e "\033[1;33mScript is already running. Use "exit" from the shell to return to the menu.\n\nReturning to the bash shell...\033[0m"
+  clear
+  echo -e "\033[1;33mScript is already running. Type `exit` from the shell to return to the menu.\n\nReturning to the bash shell ...\n\033[0m"
   exit 1 # Exit the current process, returning to the main script loop
 fi
 
@@ -42,59 +42,84 @@ function cleanup {
 trap cleanup EXIT
 
 function ltcreate {
+  echo -e "\033[1;33mRunning ltctl deployment create ...\033[0m"
   go run ./cmd/ltctl deployment create
+  wait_after_action
 }
 
 function ltinfo {
+  echo -e "\033[1;33mRunning ltctl deployment info ...\033[0m"
   go run ./cmd/ltctl deployment info
+  wait_after_action
 }
 
 function ltsync {
+  echo -e "\033[1;33mRunning ltctl deployment sync ...\033[0m"
   go run ./cmd/ltctl deployment sync
+  wait_after_action
 }
 
 function ltdestroy {
+  echo -e "\033[1;33mRunning ltctl deployment create ...\033[0m"
   go run ./cmd/ltctl deployment destroy
+  wait_after_action
 }
 
 function ltstart {
+  echo -e "\033[1;33mRunning ltctl loadtest start ...\033[0m"
   go run ./cmd/ltctl loadtest start
+  wait_after_action
 }
 
 function ltstatus {
+  echo -e "\033[1;33mRunning ltctl loadtest status ...\033[0m"
   go run ./cmd/ltctl loadtest status
+  wait_after_action
 }
 
 function ltstop {
+  echo -e "\033[1;33mRunning ltctl loadtest stop ...\033[0m"
   go run ./cmd/ltctl loadtest stop
+  wait_after_action
 }
 
 function ltssh {
+  echo -e "\033[1;33mRunning ltctl ssh $@ ...\033[0m"
   go run ./cmd/ltctl ssh "$@"
 }
 
 function ltreset {
+  echo -e "\033[1;33mRunning ltctl loadtest reset ...\033[0m"
   go run ./cmd/ltctl loadtest reset
+  wait_after_action
 }
 
 function wait_for_user_attach {
-  echo -e "\033[1;34mPress any key to start...\033[0m"
+  echo -e "\033[1;34mPress any key to begin...\033[0m"
+  while ! read -n 1 -s -r; do
+    sleep 1
+  done
+}
+
+function wait_after_action {
+  echo -e "\033[1;34mPress any key to continue ...\033[0m"
   while ! read -n 1 -s -r; do
     sleep 1
   done
 }
 
 function show_welcome {
-  echo -e "\033[1;34mWelcome to the Mattermost Load Test Shell\033[0m"
+  clear
+  echo -e "\033[1;34mWelcome to the Mattermost Load Test Shell\n\033[0m"
   if [ "$MMLT_CONFIG_FILES_CREATED" = "true" ]; then
-    echo -e "\033[1;33mIt looks like this is your first time running the script.\033[0m"
-    echo -e "\033[1;33mWe recommend running the \033[1;32mconfigureLoadTest\033[1;33m tool first to set up your configuration files.\033[0m"
+    echo -e "\033[1;33m\nIt looks like this is your first time running the script.\033[0m"
+    echo -e "\033[1;33mWe recommend running the \033[1;32mconfigureLoadTest\033[1;33m tool first to set up your configuration files.\n\033[0m"
   fi
 }
 
 function warn_credentials {
-  if [ "${MMLT_CREDENTIALS:-}" != "true" ]; then
-    echo -e "\033[1;91mCredentials file missing or incorrect!\n"Edit Configuration Files" to set up AWS Credentials!\033[0m"
+  if [ "${MMLT_NO_CREDENTIALS:-}" != "true" ]; then
+    echo -e "\033[1;91m\nCredentials file missing or incorrect! "Edit Configuration Files" to set up AWS Credentials!\n\033[0m"
   fi
 }
 
@@ -148,6 +173,8 @@ wait_for_user_attach
 
 show_welcome
 
+warn_credentials
+
 while true; do
   show_menu
   case $option in
@@ -167,7 +194,10 @@ while true; do
       7) ltreset ;;
       8) ltdestroy ;;
       9) break ;;
-      *) echo -e "\033[1;31mInvalid option. Please select again.\033[0m" ;;
+      *)
+        clear
+        echo -e "\033[1;31mInvalid option. Please select again.\n\033[0m"
+        ;;
       esac
     done
     ;;
@@ -180,7 +210,10 @@ while true; do
       3) ltssh proxy ;;
       4) ltssh metrics ;;
       5) break ;;
-      *) echo -e "\033[1;31mInvalid option. Please select again.\033[0m" ;;
+      *)
+        clear
+        echo -e "\033[1;31mInvalid option. Please select again.\n\033[0m"
+        ;;
       esac
     done
     ;;
@@ -193,12 +226,16 @@ while true; do
       3) nano /mmlt/config/config.json ;;
       4) nano /mmlt/config/credentials ;;
       5) break ;;
-      *) echo -e "\033[1;31mInvalid option. Please select again.\033[0m" ;;
+      *)
+        clear
+        echo -e "\033[1;31mInvalid option. Please select again.\n\033[0m"
+        ;;
       esac
     done
     ;;
   5)
-    echo -e "\033[1;33mDropping to bash shell. Type 'exit' to return to the menu.\033[0m"
+    clear
+    echo -e "\033[1;33mDropping to bash shell. Type 'exit' to return to the menu.\n\033[0m"
     bash
     ;;
   6)
@@ -206,7 +243,8 @@ while true; do
     exit 0
     ;;
   *)
-    echo -e "\033[1;31mInvalid option. Please select again.\033[0m"
+    clear
+    echo -e "\033[1;31mInvalid option. Please select again.\n\033[0m"
     ;;
   esac
 done

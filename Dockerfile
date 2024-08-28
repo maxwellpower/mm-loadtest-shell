@@ -14,18 +14,30 @@
 
 # File: Dockerfile
 
-# Builder stage for Terraform and repository cloning
-FROM alpine AS builder
+FROM alpine AS terraform
 
-# Install necessary packages and set up Terraform
-RUN apk add --no-cache curl unzip git jq bash \
-    && git clone --depth=1 --no-tags https://github.com/mattermost/mattermost-load-test-ng.git /mmlt \
-    && cp -r /mmlt/config/ /mmlt/config.default \
-    && rm -rf /mmlt/.git /mmlt/.github /mmlt/config/*.sample.* /var/cache/apk/*
+RUN apk add --no-cache curl unzip jq bash
 
-COPY .docker /build
+COPY /tools /build
 WORKDIR /build
 RUN chmod -R +x /build && ./buildTerraform
+
+# Builder stage for Terraform and repository cloning
+FROM alpine AS mmlt
+
+# Install necessary packages
+RUN apk add --no-cache curl git jq bash
+
+RUN git clone --depth=1 --no-tags https://github.com/mattermost/mattermost-load-test-ng.git /mmlt \
+    && cp -r /mmlt/config/ /mmlt/config.default \
+    && rm -rf /mmlt/.git /mmlt/.github /mmlt/config/*.sample.*
+
+FROM alpine AS scripts
+
+# Ensure scripts are executable
+COPY bin/ /usr/local/bin/
+COPY .docker/docker-entrypoint /usr/local/bin/
+RUN chmod -R +x /usr/local/bin
 
 # Final stage
 FROM golang:1.23-alpine3.20 AS final
@@ -42,8 +54,9 @@ RUN apk add --no-cache openssh bash nano jq curl aws-cli \
     && ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
 
 # Copy necessary files from builder stage
-COPY --from=builder /terraform/terraform /usr/local/bin/terraform
-COPY --from=builder /mmlt /mmlt
+COPY --from=scripts /usr/local/bin/ /usr/local/bin/
+COPY --from=terraform /terraform/terraform /usr/local/bin/terraform
+COPY --from=mmlt /mmlt /mmlt
 
 # Set aliases and environment variables in .bashrc
 RUN echo 'alias ltcreate="go run ./cmd/ltctl deployment create"' >> /root/.bashrc \
@@ -63,13 +76,7 @@ WORKDIR /mmlt
 RUN go mod tidy
 
 # Run the initial Terraform setup command
-RUN go run ./cmd/ltctl loadtest
-
-# Ensure scripts are executable
-COPY runLoadTest /usr/local/bin/runLoadTest
-COPY configureLoadTest /usr/local/bin/configureLoadTest
-COPY .docker/entrypoint /usr/local/bin/docker-entrypoint
-RUN chmod +x /usr/local/bin/runLoadTest /usr/local/bin/configureLoadTest /usr/local/bin/docker-entrypoint
+RUN go run ./cmd/ltctl loadtest -h
 
 # Volume for configuration persistence
 VOLUME ["/mmlt/config"]

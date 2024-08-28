@@ -14,10 +14,29 @@
 # AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-# File: .docker/builtTerraform
+# File: tools/buildTerraform
 
-export TERRAFORM_VERSION=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | jq -r .tag_name | sed 's/^v//')
+# Detect OS and architecture
+OS=$(uname | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+
+# Map architecture to Terraform's expected values
+case $ARCH in
+    x86_64)
+        ARCH="amd64"
+        ;;
+    aarch64)
+        ARCH="arm64"
+        ;;
+    *)
+        echo "Unsupported architecture: $ARCH"
+        exit 1
+        ;;
+esac
+
+# Fetch the latest Terraform version
+TERRAFORM_VERSION=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | jq -r .tag_name | sed 's/^v//')
 
 # Download and unzip Terraform
-curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
-unzip terraform_${TERRAFORM_VERSION}_linux_amd64.zip -d /terraform
+curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_${OS}_${ARCH}.zip
+unzip terraform_${TERRAFORM_VERSION}_${OS}_${ARCH}.zip -d /terraform
