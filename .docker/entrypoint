@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # Mattermost Load Test Shell
 
@@ -13,6 +13,8 @@
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
 # AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+# File: .docker/entrypoint
 
 function _sshAgent {
     echo "Adding SSH key to the agent..."
@@ -29,19 +31,49 @@ function _sshAgent {
 function _checkConfig {
     echo "Checking the configuration..."
     if [ ! -f /mmlt/config/deployer.sample.json ]; then
+        export ENTRYPOINT_CONFIG_FILES_CREATED=true
         echo "Deployer configuration file not found. Copying..."
         cp /mmlt/config.default/deployer.sample.json /mmlt/config/deployer.json
-        NEW_VERSION=$(curl -s https://api.github.com/repos/mattermost/mattermost-load-test-ng/releases/latest | jq -r .tag_name | sed 's/^v//') sed -i '' "s|/v[0-9]*\.[0-9]*\.[0-9]*/|/v${NEW_VERSION}/|g" /mmlt/config/deployer.json
+        echo "Configuring Load Test Version in deployer ..."
+        NEW_VERSION=$(curl -s https://api.github.com/repos/mattermost/mattermost-load-test-ng/releases/latest | jq -r .tag_name | sed 's/^v//') && sed -i'' -e "s|/v[0-9]*\.[0-9]*\.[0-9]*/|/v${NEW_VERSION}/|g" /mmlt/config/deployer.json
     fi
     if [ ! -f /mmlt/config/config.sample.json ]; then
         echo "Config configuration file not found. Copying..."
         cp /mmlt/config.default/config.sample.json /mmlt/config/config.json
+    fi
+    if [ ! -f /mmlt/config/coordinator.sample.json ]; then
+        echo "Coordinator configuration file not found. Copying..."
+        cp /mmlt/config.default/coordinator.sample.json /mmlt/config/coordinator.json
+    fi
+}
+
+function _setTerraformCredentials {
+    echo "Handle Terraform Credentials"
+    # Check if the credentials file exists
+    if [ -f /config/.aws/credentials ]; then
+        echo "Credentials file found. Using the credentials file."
+        export AWS_SHARED_CREDENTIALS_FILE=/config/.aws/credentials
+        export AWS_PROFILE=mm-loadtest
+    elif [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
+        echo "Using AWS environment variables."
+    else
+        echo "No credentials found. Please set AWS environment variables or provide a credentials file."
+        mkdir -p /config/.aws
+        cat <<EOL >/config/.aws/credentials.default
+[mm-loadtest]
+aws_access_key_id=YOUR_ACCESS_KEY
+aws_secret_access_key=YOUR_SECRET_KEY
+# If Required
+#aws_session_token=YOUR_SESSION_TOKEN
+EOL
+        echo "AWS default credentials file created. Please update it with your actual credentials."
     fi
 }
 
 echo "Setting up MMLT Shell..."
 _sshAgent
 _checkConfig
+_setTerraformCredentials
 echo "MMLT Shell READY..."
 
 # Pass control to the CMD

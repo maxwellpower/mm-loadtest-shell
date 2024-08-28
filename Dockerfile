@@ -12,25 +12,20 @@
 # AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+# File: Dockerfile
+
 # Builder stage for Terraform and repository cloning
 FROM alpine AS builder
 
-# Install necessary packages
-RUN apk add --no-cache curl unzip git jq
+# Install necessary packages and set up Terraform
+RUN apk add --no-cache curl unzip git jq bash \
+    && git clone --depth=1 --no-tags https://github.com/mattermost/mattermost-load-test-ng.git /mmlt \
+    && cp -r /mmlt/config/ /mmlt/config.default \
+    && rm -rf /mmlt/.git /mmlt/.github /mmlt/config/*.sample.* /var/cache/apk/*
 
 COPY .docker /build
 WORKDIR /build
-
-RUN chmod -R +x /build
-
-# Install Terraform
-RUN ./buildTerraform
-
-# Clone the Mattermost Load Test NG repository
-RUN git clone --depth=1 --no-tags https://github.com/mattermost/mattermost-load-test-ng.git /mmlt
-RUN rm -rf /mmlt/.git
-RUN rm -rf /mmlt/.github
-RUN cp -r /mmlt/config/ /mmlt/config.default
+RUN chmod -R +x /build && ./buildTerraform
 
 # Final stage
 FROM golang:alpine as final
@@ -42,22 +37,44 @@ LABEL org.opencontainers.image.authors="Maxwell Power"
 LABEL org.opencontainers.image.source="https://github.com/maxwellpower/mm-loadtest-shell"
 LABEL org.opencontainers.image.licenses=MIT
 
-# Install bash for the entrypoint
-RUN apk add --no-cache zsh openssh nano \
-&& ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
+# Install necessary packages and SSH setup
+RUN apk add --no-cache openssh bash nano jq curl \
+    && ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
 
-# Copy Terraform binary and cloned repository from the builder stage
+# Copy necessary files from builder stage
 COPY --from=builder /terraform/terraform /usr/local/bin/terraform
 COPY --from=builder /mmlt /mmlt
-COPY --from=builder /build/entrypoint /usr/local/bin/docker-entrypoint
 
-# Set the working directory inside the container
+# Set aliases and environment variables in .bashrc
+RUN echo 'alias ltcreate="go run ./cmd/ltctl deployment create"' >> /root/.bashrc \
+    && echo 'alias ltinfo="go run ./cmd/ltctl deployment info"' >> /root/.bashrc \
+    && echo 'alias ltsync="go run ./cmd/ltctl deployment sync"' >> /root/.bashrc \
+    && echo 'alias ltdestroy="go run ./cmd/ltctl deployment destroy"' >> /root/.bashrc \
+    && echo 'alias ltstart="go run ./cmd/ltctl loadtest start"' >> /root/.bashrc \
+    && echo 'alias ltstatus="go run ./cmd/ltctl loadtest status"' >> /root/.bashrc \
+    && echo 'alias ltstop="go run ./cmd/ltctl loadtest stop"' >> /root/.bashrc \
+    && echo 'alias ltssh="go run ./cmd/ltctl ssh"' >> /root/.bashrc \
+    && echo 'alias ltreset="go run ./cmd/ltctl loadtest reset"' >> /root/.bashrc
+
+# Set working directory
 WORKDIR /mmlt
 
-RUN go run ./cmd/ltctl loadtest init
+# Ensure Go modules are initialized and dependencies are pulled
+RUN go mod tidy
 
-# Volume to store and persist data
+# Run the initial Terraform setup command
+RUN go run ./cmd/ltctl loadtest
+
+# Ensure scripts are executable
+COPY runLoadTest /usr/local/bin/runLoadTest
+COPY configureLoadTest /usr/local/bin/configureLoadTest
+COPY .docker/entrypoint /usr/local/bin/docker-entrypoint
+RUN chmod +x /usr/local/bin/runLoadTest /usr/local/bin/configureLoadTest /usr/local/bin/docker-entrypoint
+
+# Volume for configuration persistence
 VOLUME ["/mmlt/config"]
 
 ENTRYPOINT ["docker-entrypoint"]
-CMD ["/bin/zsh"]
+CMD ["runLoadTest"]
+
+HEALTHCHECK CMD [ -f /tmp/loadtest.lock ] || exit 1

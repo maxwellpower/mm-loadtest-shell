@@ -1,0 +1,209 @@
+#!/bin/bash
+
+# Mattermost Load Test Shell
+
+# Copyright (c) 2024 Maxwell Power
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom
+# the Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+# AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+# File: runLoadTest
+
+# Trap SIGINT (Ctrl+C) to prevent the script from being killed
+trap ctrl_c INT
+
+function ctrl_c() {
+  clear
+  echo -e "\n\033[1;31mDetected Ctrl+C. Use the menu option to exit the script properly.\n\033[0m"
+  show_menu
+}
+
+LOCKFILE="/tmp/loadtest.lock"
+
+if [ -f "$LOCKFILE" ]; then
+  echo -e "\033[1;33mScript is already running. Use "exit" from the shell to return to the menu.\n\nReturning to the bash shell...\033[0m"
+  exit 1 # Exit the current process, returning to the main script loop
+fi
+
+# Source bashrc to load aliases
+source /root/.bashrc
+
+# Create lock file
+touch "$LOCKFILE"
+
+function cleanup {
+  rm -f "$LOCKFILE"
+}
+
+trap cleanup EXIT
+
+function ltcreate {
+  go run ./cmd/ltctl deployment create
+}
+
+function ltinfo {
+  go run ./cmd/ltctl deployment info
+}
+
+function ltsync {
+  go run ./cmd/ltctl deployment sync
+}
+
+function ltdestroy {
+  go run ./cmd/ltctl deployment destroy
+}
+
+function ltstart {
+  go run ./cmd/ltctl loadtest start
+}
+
+function ltstatus {
+  go run ./cmd/ltctl loadtest status
+}
+
+function ltstop {
+  go run ./cmd/ltctl loadtest stop
+}
+
+function ltssh {
+  go run ./cmd/ltctl ssh "$@"
+}
+
+function ltreset {
+  go run ./cmd/ltctl loadtest reset
+}
+
+function wait_for_user_attach {
+  echo -e "\033[1;34mPress any key to start...\033[0m"
+  while ! read -n 1 -s -r; do
+    sleep 1
+  done
+}
+
+function show_welcome {
+  echo -e "\033[1;34mWelcome to the Mattermost Load Test Shell\033[0m"
+  if [ "$ENTRYPOINT_CONFIG_FILES_CREATED" = "true" ]; then
+    echo -e "\033[1;33mIt looks like this is your first time running the script.\033[0m"
+    echo -e "\033[1;33mWe recommend running the \033[1;32mconfigureLoadTest\033[1;33m tool first to set up your configuration files.\033[0m"
+  fi
+}
+
+function show_menu {
+  echo -e "\033[1;36mPlease choose an option:\033[0m"
+  echo -e "\033[1;92m1) Configure Load Test Settings\033[0m"
+  echo -e "\033[1;32m2) Load Test Operations\033[0m"
+  echo -e "\033[1;0m3) SSH Operations"
+  echo -e "\033[1;0m4) Edit Configuration Files"
+  echo -e "\033[1;93m5) Drop to bash shell\033[0m"
+  echo -e "\033[1;91m6) Exit script and stop container\033[0m"
+  read -p "Select an option [1-6]: " option
+}
+
+function show_loadtest_menu {
+  echo -e "\033[1;36mLoad Test Operations:\033[0m"
+  echo -e "\033[1;32m1) Create a new deployment (ltcreate)\033[0m"
+  echo -e "\033[1;32m2) Start a load test (ltstart)\033[0m"
+  echo -e "\033[1;34m3) Get load test status (ltstatus)\033[0m"
+  echo -e "\033[1;31m4) Stop the load test (ltstop)\033[0m"
+  echo -e "\033[1;0m5) Get deployment info (ltinfo)"
+  echo -e "\033[1;0m6) Sync deployment (ltsync)"
+  echo -e "\033[1;0m7) Reset load test (ltreset)"
+  echo -e "\033[1;31m8) Destroy the deployment (ltdestroy)\033[0m"
+  echo -e "\033[1;35m9) Back to main menu\033[0m"
+  read -p "Select an option [1-9]: " loadtest_option
+}
+
+function ssh_menu {
+  echo -e "\033[1;36mSSH Operations:\033[0m"
+  echo -e "\033[1;0m1) List available instances"
+  echo -e "\033[1;0m2) Coordinator"
+  echo -e "\033[1;0m3) Proxy"
+  echo -e "\033[1;0m4) Metrics/Prometheus/Grafana"
+  echo -e "\033[1;35m5) Back to main menu\033[0m"
+  read -p "Select an option [1-5]: " ssh_option
+}
+
+function config_menu {
+  echo -e "\033[1;36mConfiguration File Operations:\033[0m"
+  echo -e "\033[1;0m1) Edit deployer.json"
+  echo -e "\033[1;0m2) Edit coordinator.json"
+  echo -e "\033[1;0m3) Edit config.json"
+  echo -e "\033[1;35m4) Back to main menu\033[0m"
+  read -p "Select an option [1-4]: " config_option
+}
+
+# Wait for the user to attach
+wait_for_user_attach
+
+show_welcome
+
+while true; do
+  show_menu
+  case $option in
+  1)
+    configureLoadTest
+    ;;
+  2)
+    while true; do
+      show_loadtest_menu
+      case $loadtest_option in
+      1) ltcreate ;;
+      2) ltstart ;;
+      3) ltstatus ;;
+      4) ltstop ;;
+      5) ltinfo ;;
+      6) ltsync ;;
+      7) ltreset ;;
+      8) ltdestroy ;;
+      9) break ;;
+      *) echo -e "\033[1;31mInvalid option. Please select again.\033[0m" ;;
+      esac
+    done
+    ;;
+  3)
+    while true; do
+      ssh_menu
+      case $ssh_option in
+      1) ltssh ;;
+      2) ltssh coordinator ;;
+      3) ltssh proxy ;;
+      4) ltssh metrics ;;
+      5) break ;;
+      *) echo -e "\033[1;31mInvalid option. Please select again.\033[0m" ;;
+      esac
+    done
+    ;;
+  4)
+    while true; do
+      config_menu
+      case $config_option in
+      1) nano /mmlt/config/deployer.json ;;
+      2) nano /mmlt/config/coordinator.json ;;
+      3) nano /mmlt/config/config.json ;;
+      4) break ;;
+      *) echo -e "\033[1;31mInvalid option. Please select again.\033[0m" ;;
+      esac
+    done
+    ;;
+  5)
+    echo -e "\033[1;33mDropping to bash shell. Type 'exit' to return to the menu.\033[0m"
+    bash
+    ;;
+  6)
+    echo -e "\033[1;31mExiting script and stopping container...\033[0m"
+    exit 0
+    ;;
+  *)
+    echo -e "\033[1;31mInvalid option. Please select again.\033[0m"
+    ;;
+  esac
+done
+
+cleanup
