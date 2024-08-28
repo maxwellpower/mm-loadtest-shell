@@ -49,17 +49,14 @@ function _checkConfig {
 
 function _setTerraformCredentials {
     echo "Handle Terraform Credentials"
+    export AWS_SHARED_CREDENTIALS_FILE=/mmlt/config/credentials
+    export AWS_PROFILE=mm-loadtest
     # Check if the credentials file exists
-    if [ -f /config/.aws/credentials ]; then
+    if [ -f /mmlt/config/credentials ]; then
         echo "Credentials file found. Using the credentials file."
-        export AWS_SHARED_CREDENTIALS_FILE=/config/.aws/credentials
-        export AWS_PROFILE=mm-loadtest
-    elif [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
-        echo "Using AWS environment variables."
     else
         echo "No credentials found. Please set AWS environment variables or provide a credentials file."
-        mkdir -p /config/.aws
-        cat <<EOL >/config/.aws/credentials.default
+        cat <<EOL >/mmlt/config/credentials.default
 [mm-loadtest]
 aws_access_key_id=YOUR_ACCESS_KEY
 aws_secret_access_key=YOUR_SECRET_KEY

@@ -40,6 +40,24 @@ This containerized shell provides an easy-to-use environment for running Matterm
    docker exec -it mmlt <CMD>
    ```
 
+### Handling AWS Credentials
+
+To run Terraform commands, you must have AWS credentials set up. These credentials should be stored in a file located at `~/.aws/credentials` inside the container. The format of the credentials file should be as follows:
+
+```ini
+[mm-loadtest]
+aws_access_key_id=YOUR_ACCESS_KEY
+aws_secret_access_key=YOUR_SECRET_KEY
+```
+
+**Important**: If you don't have this file in your container, the script will prompt you to create one or provide environment variables for AWS access. The `/mmlt/config` directory is used to persist this configuration. You can mount a local directory to persist these credentials across sessions:
+
+```bash
+docker run --rm -dit -v $(pwd)/config:/mmlt/config --name mmlt ghcr.io/maxwellpower/mm-loadtest-shell
+```
+
+Replace `$(pwd)` with the path to your local configuration directory.
+
 ### Interactive Load Testing Menu
 
 When you attach to the container, you are greeted with an interactive menu that allows you to manage your load testing deployment. Options include:
@@ -47,7 +65,7 @@ When you attach to the container, you are greeted with an interactive menu that 
 1. **Configure Load Test Settings**: Run the `configureLoadTest` script to customize deployment settings.
 2. **Create a New Deployment**: Set up a new Mattermost deployment for load testing using `ltcreate`.
 3. **Get Deployment Info**: Retrieve current deployment information using `ltinfo`.
-4. **Sync Deployment**: Synchronize or reset the deployment using `ltreset`.
+4. **Sync Deployment**: Synchronize or reset the deployment using `ltsync`.
 5. **Destroy the Deployment**: Clean up and remove the current deployment using `ltdestroy`.
 6. **Start a Load Test**: Initiate a load test across the deployment using `ltstart`.
 7. **Get Load Test Status**: Check the current status of an ongoing load test using `ltstatus`.
@@ -55,16 +73,6 @@ When you attach to the container, you are greeted with an interactive menu that 
 9. **SSH into a Host**: Access different hosts in your deployment via SSH.
 10. **Drop to Bash Shell**: Open a bash shell session within the container.
 11. **Exit Script**: Exit the script and stop the container.
-
-### Configuration Files
-
-The container uses a `/mmlt/config` volume for configuration files. To persist configurations across container restarts, mount a local directory:
-
-```bash
-docker run --rm -dit -v $(pwd)/config:/mmlt/config --name mmlt ghcr.io/maxwellpower/mm-loadtest-shell
-```
-
-Replace `$(pwd)` with your local configuration directory path.
 
 ### Automatic Configuration Handling
 

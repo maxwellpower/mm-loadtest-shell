@@ -38,7 +38,7 @@ LABEL org.opencontainers.image.source="https://github.com/maxwellpower/mm-loadte
 LABEL org.opencontainers.image.licenses=MIT
 
 # Install necessary packages and SSH setup
-RUN apk add --no-cache openssh bash nano jq curl \
+RUN apk add --no-cache openssh bash nano jq curl aws-cli \
     && ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
 
 # Copy necessary files from builder stage
