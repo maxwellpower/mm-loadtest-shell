@@ -42,7 +42,7 @@ This containerized shell provides an easy-to-use environment for running Matterm
 
 ### Handling AWS Credentials
 
-To run Terraform commands, you must have AWS credentials set up. These credentials should be stored in a file located at `~/.aws/credentials` inside the container. The format of the credentials file should be as follows:
+To run Terraform commands, you must have AWS credentials set up. These credentials should be stored in a file located at `/mmlt/config/credentials` inside the container. The format of the credentials file should be as follows:
 
 ```ini
 [mm-loadtest]
@@ -50,7 +50,7 @@ aws_access_key_id=YOUR_ACCESS_KEY
 aws_secret_access_key=YOUR_SECRET_KEY
 ```
 
-**Important**: If you don't have this file in your container, the script will prompt you to create one or provide environment variables for AWS access. The `/mmlt/config` directory is used to persist this configuration. You can mount a local directory to persist these credentials across sessions:
+**Important**: If you don't have this file in your container, the script will prompt you to create one. The `/mmlt/config` directory is used to persist this configuration. You can mount a local directory to persist these credentials across sessions:
 
 ```bash
 docker run --rm -dit -v $(pwd)/config:/mmlt/config --name mmlt ghcr.io/maxwellpower/mm-loadtest-shell
@@ -80,7 +80,7 @@ The entrypoint script handles the following:
 
 1. **SSH Agent Setup**: Initializes and adds your SSH key if necessary.
 2. **Configuration Checks**: Copies default configuration files to `/mmlt/config` if missing.
-3. **AWS Credentials Setup**: Configures AWS credentials from environment variables or a credentials file.
+3. **AWS Credentials Setup**: Configures AWS credentials file.
 
 ### Running Load Tests with Aliases
 

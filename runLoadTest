@@ -32,9 +32,6 @@ if [ -f "$LOCKFILE" ]; then
   exit 1 # Exit the current process, returning to the main script loop
 fi
 
-# Source bashrc to load aliases
-source /root/.bashrc
-
 # Create lock file
 touch "$LOCKFILE"
 
@@ -89,9 +86,15 @@ function wait_for_user_attach {
 
 function show_welcome {
   echo -e "\033[1;34mWelcome to the Mattermost Load Test Shell\033[0m"
-  if [ "$ENTRYPOINT_CONFIG_FILES_CREATED" = "true" ]; then
+  if [ "$MMLT_CONFIG_FILES_CREATED" = "true" ]; then
     echo -e "\033[1;33mIt looks like this is your first time running the script.\033[0m"
     echo -e "\033[1;33mWe recommend running the \033[1;32mconfigureLoadTest\033[1;33m tool first to set up your configuration files.\033[0m"
+  fi
+}
+
+function warn_credentials {
+  if [ "${MMLT_CREDENTIALS:-}" != "true" ]; then
+    echo -e "\033[1;91mCredentials file missing or incorrect!\n"Edit Configuration Files" to set up AWS Credentials!\033[0m"
   fi
 }
 
@@ -135,7 +138,8 @@ function config_menu {
   echo -e "\033[1;0m1) Edit deployer.json"
   echo -e "\033[1;0m2) Edit coordinator.json"
   echo -e "\033[1;0m3) Edit config.json"
-  echo -e "\033[1;35m4) Back to main menu\033[0m"
+  echo -e "\033[1;0m4) Edit AWS Credentials\033[0m"
+  echo -e "\033[1;35m5) Back to main menu\033[0m"
   read -p "Select an option [1-4]: " config_option
 }
 
@@ -187,7 +191,8 @@ while true; do
       1) nano /mmlt/config/deployer.json ;;
       2) nano /mmlt/config/coordinator.json ;;
       3) nano /mmlt/config/config.json ;;
-      4) break ;;
+      4) nano /mmlt/config/credentials ;;
+      5) break ;;
       *) echo -e "\033[1;31mInvalid option. Please select again.\033[0m" ;;
       esac
     done

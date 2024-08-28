@@ -28,7 +28,7 @@ WORKDIR /build
 RUN chmod -R +x /build && ./buildTerraform
 
 # Final stage
-FROM golang:alpine as final
+FROM golang:1.23-alpine3.20 AS final
 
 LABEL MAINTAINER="maxwell.power@mattermost.com"
 LABEL org.opencontainers.image.title="mm-loadtest-shell"

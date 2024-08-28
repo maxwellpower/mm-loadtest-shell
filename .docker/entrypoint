@@ -31,7 +31,7 @@ function _sshAgent {
 function _checkConfig {
     echo "Checking the configuration..."
     if [ ! -f /mmlt/config/deployer.sample.json ]; then
-        export ENTRYPOINT_CONFIG_FILES_CREATED=true
+        export MMLT_CONFIG_FILES_CREATED=true
         echo "Deployer configuration file not found. Copying..."
         cp /mmlt/config.default/deployer.sample.json /mmlt/config/deployer.json
         echo "Configuring Load Test Version in deployer ..."
@@ -54,16 +54,17 @@ function _setTerraformCredentials {
     # Check if the credentials file exists
     if [ -f /mmlt/config/credentials ]; then
         echo "Credentials file found. Using the credentials file."
+        export MMLT_CREDENTIALS=true
     else
-        echo "No credentials found. Please set AWS environment variables or provide a credentials file."
-        cat <<EOL >/mmlt/config/credentials.default
+        echo "No credentials found. Please provide a credentials file."
+        cat <<EOL >/mmlt/config/credentials
 [mm-loadtest]
-aws_access_key_id=YOUR_ACCESS_KEY
-aws_secret_access_key=YOUR_SECRET_KEY
+aws_access_key_id=
+aws_secret_access_key=
 # If Required
-#aws_session_token=YOUR_SESSION_TOKEN
+#aws_session_token=
 EOL
-        echo "AWS default credentials file created. Please update it with your actual credentials."
+        echo "AWS credentials file created. Please update it with your actual credentials."
     fi
 }
 
