@@ -17,63 +17,87 @@
 # File: bin/mmltSetup
 
 function _sshAgent {
-    echo "Adding SSH key to the agent..."
+    echo "[INFO]: Adding SSH key to the agent..."
     if [ -z "$(pgrep ssh-agent)" ]; then
-        echo "Starting ssh-agent..."
+        echo "[INFO]: Starting ssh-agent..."
         eval $(ssh-agent -s)
     else
-        echo "ssh-agent is already running..."
+        echo "[WARN]: ssh-agent is already running..."
     fi
-    echo "Adding the key..."
+    echo "[INFO]: Adding the key..."
     ssh-add /root/.ssh/id_rsa
 }
 
 function _checkConfig {
-    echo "Checking the configuration..."
+    echo "[INFO]: Checking the configuration ..."
     if [ ! -f /mmlt/config/deployer.json ]; then
         export MMLT_CONFIG_FILES_CREATED=true
-        echo "Deployer configuration file not found. Copying..."
+        echo "[WARN]: Deployer configuration file not found. Copying ..."
         cp /mmlt/config.default/deployer.sample.json /mmlt/config/deployer.json
-        echo "Configuring Load Test Version in deployer ..."
+        # Configuring Load Test Version in deployer
         NEW_VERSION=$(curl -s https://api.github.com/repos/mattermost/mattermost-load-test-ng/releases/latest | jq -r .tag_name | sed 's/^v//') && sed -i'' -e "s|/v[0-9]*\.[0-9]*\.[0-9]*/|/v${NEW_VERSION}/|g" /mmlt/config/deployer.json
     fi
     if [ ! -f /mmlt/config/config.json ]; then
-        echo "Config configuration file not found. Copying..."
+        echo "[WARN]: Config configuration file not found. Copying..."
         cp /mmlt/config.default/config.sample.json /mmlt/config/config.json
     fi
     if [ ! -f /mmlt/config/coordinator.json ]; then
-        echo "Coordinator configuration file not found. Copying..."
+        echo "[WARN]: Coordinator configuration file not found. Copying..."
         cp /mmlt/config.default/coordinator.sample.json /mmlt/config/coordinator.json
     fi
 }
 
-function _setTerraformCredentials {
-    echo "Handle Terraform Credentials"
-    export AWS_SHARED_CREDENTIALS_FILE=/mmlt/config/credentials
-    export AWS_PROFILE=mm-loadtest
+function _checkTerraform {
+    TERRAFORM_VERSION=$(terraform -v | head -n 1 | awk '{print $2}') && export TERRAFORM_VERSION
+    if [ $TERRAFORM_VERSION ]; then
+        echo "[INFO]: Terraform Version $TERRAFORM_VERISON found"
+    else
+        echo "[ERROR]: Terraform not found!"
+        exit 1
+    fi
+    echo "[INFO]: Checking Terraform Credentials ..."
     # Check if the credentials file exists
     if [ -f /mmlt/config/credentials ]; then
-        echo "Credentials file found. Using the credentials file."
+        echo "[INFO]: Credentials file found. Using the credentials file."
         export MMLT_AWS_CREDENTIALS=true
     else
-        echo "No credentials found. Please provide a credentials file."
+        echo "[WARN]: No credentials found. Please provide a credentials file in /mmlt/config."
         export MMLT_AWS_CREDENTIALS=false
-        cat <<EOL >/mmlt/config/credentials
-[mm-loadtest]
-aws_access_key_id=
-aws_secret_access_key=
-# If Required
-#aws_session_token=
-EOL
-        echo "AWS credentials file created. Please update it with your actual credentials."
     fi
 }
 
-echo "Setting up MMLT Shell..."
+function _checkLicense {
+    echo "[INFO]: Checking for a license file ..."
+    # Check if the license file exists
+    if [ -f /mmlt/config/license ]; then
+        echo "[INFO]: License file found."
+        export MMLT_LICENSE=true
+    else
+        echo "[WARN]: No license found. Please provide a license file in /mmlt/config."
+        export MMLT_LICENSE=false
+    fi
+}
+
+function _setAliases {
+    # Set aliases and environment variables in .bashrc
+    echo "[INFO]: Setting up Aliases ..."
+    echo 'alias mmltCreate="go run ./cmd/ltctl deployment create"' >> /root/.bashrc \
+    && echo 'alias mmltInfo="go run ./cmd/ltctl deployment info"' >> /root/.bashrc \
+    && echo 'alias mmltSync="go run ./cmd/ltctl deployment sync"' >> /root/.bashrc \
+    && echo 'alias mmltDestroy="go run ./cmd/ltctl deployment destroy"' >> /root/.bashrc \
+    && echo 'alias mmltStart="go run ./cmd/ltctl loadtest start"' >> /root/.bashrc \
+    && echo 'alias mmltStatus="go run ./cmd/ltctl loadtest status"' >> /root/.bashrc \
+    && echo 'alias mmltStop="go run ./cmd/ltctl loadtest stop"' >> /root/.bashrc \
+    && echo 'alias mmltSsh="go run ./cmd/ltctl ssh"' >> /root/.bashrc \
+    && echo 'alias mmltReset="go run ./cmd/ltctl loadtest reset"' >> /root/.bashrc
+}
+
+echo "[INFO]: Initilizing Load Test Shell v$MMLT_BUILD_VERSION ..."
 _sshAgent
 _checkConfig
-_setTerraformCredentials
-echo "MMLT Shell READY..."
+_checkTerraform
+_checkLicense
+echo "[INFO]: Setup Complete. Starting Shell ..."
 
 # Pass control to the CMD
 exec "$@"

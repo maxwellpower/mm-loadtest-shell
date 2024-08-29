@@ -40,3 +40,5 @@ TERRAFORM_VERSION=$(curl -s https://api.github.com/repos/hashicorp/terraform/rel
 # Download and unzip Terraform
 curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_${OS}_${ARCH}.zip
 unzip terraform_${TERRAFORM_VERSION}_${OS}_${ARCH}.zip -d /terraform
+echo "#!/bin/bash\nexport TERRAFORM_VERSION=$TERRAFORM_VERSION" >> /terraform/setTerraformVersion
+chmod +x /terraform/setTerraformVersion
