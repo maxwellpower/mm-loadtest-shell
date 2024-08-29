@@ -14,7 +14,7 @@
 # AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-# File: bin/runLoadTest
+# File: bin/mmltShell
 
 # Trap SIGINT (Ctrl+C) to prevent the script from being killed
 trap ctrl_c INT
@@ -41,54 +41,54 @@ function cleanup {
 
 trap cleanup EXIT
 
-function ltcreate {
+function mmltCreate {
   echo -e "\033[1;33mRunning ltctl deployment create ...\033[0m"
   go run ./cmd/ltctl deployment create
   wait_after_action
 }
 
-function ltinfo {
+function mmltInfo {
   echo -e "\033[1;33mRunning ltctl deployment info ...\033[0m"
   go run ./cmd/ltctl deployment info
   wait_after_action
 }
 
-function ltsync {
+function mmltSync {
   echo -e "\033[1;33mRunning ltctl deployment sync ...\033[0m"
   go run ./cmd/ltctl deployment sync
   wait_after_action
 }
 
-function ltdestroy {
+function mmltDestroy {
   echo -e "\033[1;33mRunning ltctl deployment create ...\033[0m"
   go run ./cmd/ltctl deployment destroy
   wait_after_action
 }
 
-function ltstart {
+function mmltStart {
   echo -e "\033[1;33mRunning ltctl loadtest start ...\033[0m"
   go run ./cmd/ltctl loadtest start
   wait_after_action
 }
 
-function ltstatus {
+function mmltStatus {
   echo -e "\033[1;33mRunning ltctl loadtest status ...\033[0m"
   go run ./cmd/ltctl loadtest status
   wait_after_action
 }
 
-function ltstop {
+function mmltStop {
   echo -e "\033[1;33mRunning ltctl loadtest stop ...\033[0m"
   go run ./cmd/ltctl loadtest stop
   wait_after_action
 }
 
-function ltssh {
+function mmltSsh {
   echo -e "\033[1;33mRunning ltctl ssh $@ ...\033[0m"
   go run ./cmd/ltctl ssh "$@"
 }
 
-function ltreset {
+function mmltReset {
   echo -e "\033[1;33mRunning ltctl loadtest reset ...\033[0m"
   go run ./cmd/ltctl loadtest reset
   wait_after_action
@@ -130,20 +130,20 @@ function show_menu {
   echo -e "\033[1;0m3) SSH Operations"
   echo -e "\033[1;0m4) Edit Configuration Files"
   echo -e "\033[1;93m5) Drop to bash shell\033[0m"
-  echo -e "\033[1;91m6) Exit script and stop container\033[0m"
+  echo -e "\033[1;31m6) Exit script and stop container\033[0m"
   read -p "Select an option [1-6]: " option
 }
 
 function show_loadtest_menu {
   echo -e "\033[1;36mLoad Test Operations:\033[0m"
-  echo -e "\033[1;32m1) Create a new deployment (ltcreate)\033[0m"
-  echo -e "\033[1;32m2) Start a load test (ltstart)\033[0m"
-  echo -e "\033[1;34m3) Get load test status (ltstatus)\033[0m"
-  echo -e "\033[1;31m4) Stop the load test (ltstop)\033[0m"
-  echo -e "\033[1;0m5) Get deployment info (ltinfo)"
-  echo -e "\033[1;0m6) Sync deployment (ltsync)"
-  echo -e "\033[1;0m7) Reset load test (ltreset)"
-  echo -e "\033[1;31m8) Destroy the deployment (ltdestroy)\033[0m"
+  echo -e "\033[1;32m1) Create a new deployment\033[0m"
+  echo -e "\033[1;32m2) Start a load test\033[0m"
+  echo -e "\033[1;34m3) Get load test status\033[0m"
+  echo -e "\033[1;31m4) Stop the load test\033[0m"
+  echo -e "\033[1;0m5) Get deployment info"
+  echo -e "\033[1;0m6) Sync deployment"
+  echo -e "\033[1;0m7) Reset load test"
+  echo -e "\033[1;31m8) Destroy the deployment\033[0m"
   echo -e "\033[1;35m9) Back to main menu\033[0m"
   read -p "Select an option [1-9]: " loadtest_option
 }
@@ -179,20 +179,20 @@ while true; do
   show_menu
   case $option in
   1)
-    configureLoadTest
+    mmltConfigure
     ;;
   2)
     while true; do
       show_loadtest_menu
       case $loadtest_option in
-      1) ltcreate ;;
-      2) ltstart ;;
-      3) ltstatus ;;
-      4) ltstop ;;
-      5) ltinfo ;;
-      6) ltsync ;;
-      7) ltreset ;;
-      8) ltdestroy ;;
+      1) mmltCreate ;;
+      2) mmltStart ;;
+      3) mmltStatus ;;
+      4) mmltStop ;;
+      5) mmltInfo ;;
+      6) mmltSync ;;
+      7) mmltReset ;;
+      8) mmltDestroy ;;
       9) break ;;
       *)
         clear
@@ -205,10 +205,10 @@ while true; do
     while true; do
       ssh_menu
       case $ssh_option in
-      1) ltssh ;;
-      2) ltssh coordinator ;;
-      3) ltssh proxy ;;
-      4) ltssh metrics ;;
+      1) mmltSsh ;;
+      2) mmltSsh coordinator ;;
+      3) mmltSsh proxy ;;
+      4) mmltSsh metrics ;;
       5) break ;;
       *)
         clear

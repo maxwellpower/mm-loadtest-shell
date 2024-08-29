@@ -62,14 +62,14 @@ Replace `$(pwd)` with the path to your local configuration directory.
 
 When you attach to the container, you are greeted with an interactive menu that allows you to manage your load testing deployment. Options include:
 
-1. **Configure Load Test Settings**: Run the `configureLoadTest` script to customize deployment settings.
-2. **Create a New Deployment**: Set up a new Mattermost deployment for load testing using `ltcreate`.
-3. **Get Deployment Info**: Retrieve current deployment information using `ltinfo`.
-4. **Sync Deployment**: Synchronize or reset the deployment using `ltsync`.
-5. **Destroy the Deployment**: Clean up and remove the current deployment using `ltdestroy`.
-6. **Start a Load Test**: Initiate a load test across the deployment using `ltstart`.
-7. **Get Load Test Status**: Check the current status of an ongoing load test using `ltstatus`.
-8. **Stop the Load Test**: Stop an ongoing load test using `ltstop`.
+1. **Configure Load Test Settings**: Run the `mmltConfigure` script to customize deployment settings.
+2. **Create a New Deployment**: Set up a new Mattermost deployment for load testing.
+3. **Get Deployment Info**: Retrieve current deployment information.
+4. **Sync Deployment**: Synchronize or reset the deployment.
+5. **Destroy the Deployment**: Clean up and remove the current deployment.
+6. **Start a Load Test**: Initiate a load test across the deployment.
+7. **Get Load Test Status**: Check the current status of an ongoing load test.
+8. **Stop the Load Test**: Stop an ongoing load test.
 9. **SSH into a Host**: Access different hosts in your deployment via SSH.
 10. **Drop to Bash Shell**: Open a bash shell session within the container.
 11. **Exit Script**: Exit the script and stop the container.
@@ -101,7 +101,7 @@ The following aliases simplify running commands:
 To SSH into the terraformed hosts, use:
 
 ```bash
-ltssh <target>
+mmltSsh <target>
 ```
 
 Where `<target>` can be `coordinator`, `proxy`, `metrics`, or any instance name.

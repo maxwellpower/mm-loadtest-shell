@@ -32,13 +32,6 @@ RUN git clone --depth=1 --no-tags https://github.com/mattermost/mattermost-load-
     && cp -r /mmlt/config/ /mmlt/config.default \
     && rm -rf /mmlt/.git /mmlt/.github /mmlt/config/*.sample.*
 
-FROM alpine AS scripts
-
-# Ensure scripts are executable
-COPY bin/ /usr/local/bin/
-COPY .docker/docker-entrypoint /usr/local/bin/
-RUN chmod -R +x /usr/local/bin
-
 # Final stage
 FROM golang:1.23-alpine3.20 AS final
 
@@ -53,35 +46,37 @@ LABEL org.opencontainers.image.licenses=MIT
 RUN apk add --no-cache openssh bash nano jq curl aws-cli \
     && ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
 
-# Copy necessary files from builder stage
-COPY --from=scripts /usr/local/bin/ /usr/local/bin/
+# Copy necessary files from builder stages
 COPY --from=terraform /terraform/terraform /usr/local/bin/terraform
 COPY --from=mmlt /mmlt /mmlt
 
 # Set aliases and environment variables in .bashrc
-RUN echo 'alias ltcreate="go run ./cmd/ltctl deployment create"' >> /root/.bashrc \
-    && echo 'alias ltinfo="go run ./cmd/ltctl deployment info"' >> /root/.bashrc \
-    && echo 'alias ltsync="go run ./cmd/ltctl deployment sync"' >> /root/.bashrc \
-    && echo 'alias ltdestroy="go run ./cmd/ltctl deployment destroy"' >> /root/.bashrc \
-    && echo 'alias ltstart="go run ./cmd/ltctl loadtest start"' >> /root/.bashrc \
-    && echo 'alias ltstatus="go run ./cmd/ltctl loadtest status"' >> /root/.bashrc \
-    && echo 'alias ltstop="go run ./cmd/ltctl loadtest stop"' >> /root/.bashrc \
-    && echo 'alias ltssh="go run ./cmd/ltctl ssh"' >> /root/.bashrc \
-    && echo 'alias ltreset="go run ./cmd/ltctl loadtest reset"' >> /root/.bashrc
+RUN echo 'alias mmltCreate="go run ./cmd/ltctl deployment create"' >> /root/.bashrc \
+    && echo 'alias mmltInfo="go run ./cmd/ltctl deployment info"' >> /root/.bashrc \
+    && echo 'alias mmltSync="go run ./cmd/ltctl deployment sync"' >> /root/.bashrc \
+    && echo 'alias mmltDestroy="go run ./cmd/ltctl deployment destroy"' >> /root/.bashrc \
+    && echo 'alias mmltStart="go run ./cmd/ltctl loadtest start"' >> /root/.bashrc \
+    && echo 'alias mmltStatus="go run ./cmd/ltctl loadtest status"' >> /root/.bashrc \
+    && echo 'alias mmltStop="go run ./cmd/ltctl loadtest stop"' >> /root/.bashrc \
+    && echo 'alias mmltSsh="go run ./cmd/ltctl ssh"' >> /root/.bashrc \
+    && echo 'alias mmltReset="go run ./cmd/ltctl loadtest reset"' >> /root/.bashrc
+
+
+COPY bin/ /usr/local/bin/
+    
+# Ensure scripts are executable
+RUN chmod -R +x /usr/local/bin
 
 # Set working directory
 WORKDIR /mmlt
 
-# Ensure Go modules are initialized and dependencies are pulled
-RUN go mod tidy
-
 # Run the initial Terraform setup command
-RUN go run ./cmd/ltctl loadtest -h
+RUN go run ./cmd/ltctl help
 
 # Volume for configuration persistence
 VOLUME ["/mmlt/config"]
 
-ENTRYPOINT ["docker-entrypoint"]
-CMD ["runLoadTest"]
+ENTRYPOINT ["mmltSetup"]
+CMD ["mmltShell"]
 
 HEALTHCHECK CMD [ -f /tmp/loadtest.lock ] || exit 1
