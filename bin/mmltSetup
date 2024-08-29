@@ -30,18 +30,18 @@ function _sshAgent {
 
 function _checkConfig {
     echo "Checking the configuration..."
-    if [ ! -f /mmlt/config/deployer.sample.json ]; then
+    if [ ! -f /mmlt/config/deployer.json ]; then
         export MMLT_CONFIG_FILES_CREATED=true
         echo "Deployer configuration file not found. Copying..."
         cp /mmlt/config.default/deployer.sample.json /mmlt/config/deployer.json
         echo "Configuring Load Test Version in deployer ..."
         NEW_VERSION=$(curl -s https://api.github.com/repos/mattermost/mattermost-load-test-ng/releases/latest | jq -r .tag_name | sed 's/^v//') && sed -i'' -e "s|/v[0-9]*\.[0-9]*\.[0-9]*/|/v${NEW_VERSION}/|g" /mmlt/config/deployer.json
     fi
-    if [ ! -f /mmlt/config/config.sample.json ]; then
+    if [ ! -f /mmlt/config/config.json ]; then
         echo "Config configuration file not found. Copying..."
         cp /mmlt/config.default/config.sample.json /mmlt/config/config.json
     fi
-    if [ ! -f /mmlt/config/coordinator.sample.json ]; then
+    if [ ! -f /mmlt/config/coordinator.json ]; then
         echo "Coordinator configuration file not found. Copying..."
         cp /mmlt/config.default/coordinator.sample.json /mmlt/config/coordinator.json
     fi

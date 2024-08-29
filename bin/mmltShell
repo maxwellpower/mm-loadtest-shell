@@ -28,7 +28,7 @@ LOCKFILE="/tmp/loadtest.lock"
 
 if [ -f "$LOCKFILE" ]; then
   clear
-  echo -e "\033[1;33mScript is already running. Type `exit` from the shell to return to the menu.\n\nReturning to the bash shell ...\n\033[0m"
+  echo -e "\033[1;33mScript is already running. Type $(exit) from the shell to return to the menu.\n\nReturning to the bash shell ...\n\033[0m"
   exit 1 # Exit the current process, returning to the main script loop
 fi
 
@@ -60,7 +60,7 @@ function mmltSync {
 }
 
 function mmltDestroy {
-  echo -e "\033[1;33mRunning ltctl deployment create ...\033[0m"
+  echo -e "\033[1;33mRunning ltctl deployment destroy ...\033[0m"
   go run ./cmd/ltctl deployment destroy
   wait_after_action
 }
@@ -118,7 +118,7 @@ function show_welcome {
 }
 
 function warn_credentials {
-  if [ "${MMLT_NO_CREDENTIALS:-}" != "true" ]; then
+  if [ "$MMLT_NO_CREDENTIALS" != "true" ]; then
     echo -e "\033[1;91m\nCredentials file missing or incorrect! "Edit Configuration Files" to set up AWS Credentials!\n\033[0m"
   fi
 }

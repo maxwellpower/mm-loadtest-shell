@@ -58,6 +58,12 @@ docker run --rm -dit -v $(pwd)/config:/mmlt/config --name mmlt ghcr.io/maxwellpo
 
 Replace `$(pwd)` with the path to your local configuration directory.
 
+### License File
+
+The loadtest requires a valid Mattermost Enterprise License File.
+
+It is suggested to save this file as `/mmlt/config/license` and point to it in your `deployer.json` file.
+
 ### Interactive Load Testing Menu
 
 When you attach to the container, you are greeted with an interactive menu that allows you to manage your load testing deployment. Options include:
@@ -86,15 +92,15 @@ The entrypoint script handles the following:
 
 The following aliases simplify running commands:
 
-- **ltcreate**: Create a new deployment.
-- **ltinfo**: Get deployment information.
-- **ltsync**: Sync deployment.
-- **ltdestroy**: Destroy the deployment.
-- **ltstart**: Start a load test.
-- **ltstatus**: Get the current load test status.
-- **ltstop**: Stop the load test.
-- **ltreset**: Reset the load test.
-- **ltssh**: SSH into the terraformed hosts.
+- **mmltCreate**: Create a new deployment.
+- **mmltInfo**: Get deployment information.
+- **mmltSync**: Sync deployment.
+- **mmltDestroy**: Destroy the deployment.
+- **mmltStart**: Start a load test.
+- **mmltStatus**: Get the current load test status.
+- **mmltStop**: Stop the load test.
+- **mmltReset**: Reset the load test.
+- **mmltSsh**: SSH into the terraformed hosts.
 
 ### SSH Access to Hosts
 
