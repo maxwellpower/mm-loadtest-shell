@@ -2,6 +2,8 @@
 
 This containerized shell provides an easy-to-use environment for running Mattermost load testing with Terraform. It includes all necessary tools such as Terraform, Go, and bash to facilitate load testing.
 
+See the [Terraform Load Test Documentation](https://github.com/mattermost/mattermost-load-test-ng/blob/master/docs/terraform_loadtest.md) for detailed usage details.
+
 ## Getting Started
 
 1. **Run the Container:**
@@ -42,10 +44,11 @@ This containerized shell provides an easy-to-use environment for running Matterm
 
 ### Handling AWS Credentials
 
-To run Terraform commands, you must have AWS credentials set up. These credentials should be stored in a file located at `/mmlt/config/credentials` inside the container. The format of the credentials file should be as follows:
+To run Terraform commands, you must have AWS credentials set up. These credentials should be stored in a file located at `/mmlt/config/credentials` inside the container. The format of the credentials file should be as shown below. You may additionally need to include a session token as `aws_session_token`.
 
 ```ini
 [mm-loadtest]
+region=aws-region-id
 aws_access_key_id=YOUR_ACCESS_KEY
 aws_secret_access_key=YOUR_SECRET_KEY
 ```
@@ -80,34 +83,12 @@ When you attach to the container, you are greeted with an interactive menu that 
 10. **Drop to Bash Shell**: Open a bash shell session within the container.
 11. **Exit Script**: Exit the script and stop the container.
 
-### Automatic Configuration Handling
-
-The entrypoint script handles the following:
-
-1. **SSH Agent Setup**: Initializes and adds your SSH key if necessary.
-2. **Configuration Checks**: Copies default configuration files to `/mmlt/config` if missing.
-3. **AWS Credentials Setup**: Configures AWS credentials file.
-
-### Running Load Tests with Aliases
-
-The following aliases simplify running commands:
-
-- **mmltCreate**: Create a new deployment.
-- **mmltInfo**: Get deployment information.
-- **mmltSync**: Sync deployment.
-- **mmltDestroy**: Destroy the deployment.
-- **mmltStart**: Start a load test.
-- **mmltStatus**: Get the current load test status.
-- **mmltStop**: Stop the load test.
-- **mmltReset**: Reset the load test.
-- **mmltSsh**: SSH into the terraformed hosts.
-
-### SSH Access to Hosts
+### Manual SSH Access to Hosts
 
 To SSH into the terraformed hosts, use:
 
 ```bash
-mmltSsh <target>
+go run ./cmd/ltctl ssh <target>
 ```
 
 Where `<target>` can be `coordinator`, `proxy`, `metrics`, or any instance name.

@@ -14,16 +14,21 @@
 # AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-# File: bin/mmltShell
+# File: bin/mmlt
 
 # Trap SIGINT (Ctrl+C) to prevent the script from being killed
-trap ctrl_c INT
+trap _SIGINT INT
 
-function ctrl_c() {
+function _SIGINT() {
   clear
   echo -e "\n\033[1;31mDetected Ctrl+C. Use the menu option to exit the script properly.\n Press any key to continue ...\033[0m"
 }
 
+function _cleanup {
+  rm -f "$LOCKFILE"
+}
+
+# Check to ensure there is only one instance of this application running
 LOCKFILE="/tmp/loadtest.lock"
 
 if [ -f "$LOCKFILE" ]; then
@@ -35,123 +40,142 @@ fi
 # Create lock file
 touch "$LOCKFILE"
 
-function cleanup {
-  rm -f "$LOCKFILE"
-}
+trap _cleanup EXIT
 
-trap cleanup EXIT
+# Load Test Functions
 
-function mmltCreate {
+function _create {
   echo -e "\033[1;33mRunning ltctl deployment create ...\033[0m"
-  go run ./cmd/ltctl deployment create
-  wait_after_action
+  #go run ./cmd/ltctl deployment create
+  ltctl deployment create
+  _wait_after_action
 }
 
-function mmltInfo {
+function _info {
   echo -e "\033[1;33mRunning ltctl deployment info ...\033[0m"
-  go run ./cmd/ltctl deployment info
-  wait_after_action
+  #go run ./cmd/ltctl deployment info
+  ltctl deployment info
+  _wait_after_action
 }
 
-function mmltSync {
+function _sync {
   echo -e "\033[1;33mRunning ltctl deployment sync ...\033[0m"
-  go run ./cmd/ltctl deployment sync
-  wait_after_action
+  #go run ./cmd/ltctl deployment sync
+  ltctl deployment sync
+  _wait_after_action
 }
 
-function mmltDestroy {
+function _destroy {
   echo -e "\033[1;33mRunning ltctl deployment destroy ...\033[0m"
-  go run ./cmd/ltctl deployment destroy
-  wait_after_action
+  #go run ./cmd/ltctl deployment destroy
+  ltctl deployment destroy
+  _wait_after_action
 }
 
-function mmltStart {
+function _start {
   echo -e "\033[1;33mRunning ltctl loadtest start ...\033[0m"
-  go run ./cmd/ltctl loadtest start
-  wait_after_action
+  #go run ./cmd/ltctl loadtest start
+  ltctl loadtest start
+  _wait_after_action
 }
 
-function mmltStatus {
+function _status {
   echo -e "\033[1;33mRunning ltctl loadtest status ...\033[0m"
-  go run ./cmd/ltctl loadtest status
-  wait_after_action
+  #go run ./cmd/ltctl loadtest status
+  ltctl loadtest status
+  _wait_after_action
 }
 
-function mmltStop {
+function _stop {
   echo -e "\033[1;33mRunning ltctl loadtest stop ...\033[0m"
-  go run ./cmd/ltctl loadtest stop
-  wait_after_action
+  #go run ./cmd/ltctl loadtest stop
+  ltctl loadtest stop
+  _wait_after_action
 }
 
-function mmltSsh {
+function _ssh {
   echo -e "\033[1;33mRunning ltctl ssh $@ ...\033[0m"
-  go run ./cmd/ltctl ssh "$@"
+  #go run ./cmd/ltctl ssh "$@"
+  ltctl ssh "$@"
 }
 
-function mmltReset {
+function _reset {
   echo -e "\033[1;33mRunning ltctl loadtest reset ...\033[0m"
-  go run ./cmd/ltctl loadtest reset
-  wait_after_action
+  #go run ./cmd/ltctl loadtest reset
+  ltctl loadtest reset
+  _wait_after_action
 }
 
-function wait_for_user_attach {
+function _wait_for_user_attach {
   echo -e "\033[1;34mPress any key to begin...\033[0m"
   while ! read -n 1 -s -r; do
     sleep 1
   done
 }
 
-function wait_after_action {
+function _wait_after_action {
   echo -e "\033[1;34mPress any key to continue ...\033[0m"
   while ! read -n 1 -s -r; do
     sleep 1
   done
 }
 
-function show_welcome {
+function _show_welcome {
   clear
-  echo -e "\033[1;34mWelcome to the Mattermost Load Test Shell\n\033[0m"
-  if [ "$MMLT_CONFIG_FILES_CREATED" == "true" ]; then
-    echo -e "\033[1;33m\nIt looks like this is your first time running the script.\033[0m"
-    echo -e "\033[1;33mWe recommend running the \033[1;32mconfigureLoadTest\033[1;33m tool in the Configuration File Operations menu to set up your configuration files.\n\033[0m"
-  elif [ "$MMLT_CONFIG_FILES_CREATED" != "true" ]; then
-    echo -e "\033[1;32m\nUsing exising configuration files!\033[0m"
+  echo -e "\033[1;34mWelcome to the Mattermost CS Load Testing Shell v$MMLT_SHELL_VERSION\033[0m"
+  echo "This shell is based on the mattermost-load-test-ng project"
+  echo -e "See https://github.com/mattermost/mattermost-load-test-ng/blob/master/docs/terraform_loadtest.md for detailed usage details.\n"
+}
+
+function _check_updates {
+  # Compare the numeric parts of the versions
+  if [ "$MMLT_SHELL_VERSION" != "$MMLT_SHELL_UPDATE_AVAILABLE" ]; then
+    echo -e "\033[1;31m[WARN]: A newer version (v$MMLT_SHELL_UPDATE_AVAILABLE) is available. Please update your shell.\n\033[0m"
   fi
 }
 
-function warn_credentials {
+function _check_config {
+  if [ "$MMLT_NEW_CONFIG" == "true" ]; then
+    echo -e "\033[1;33mIt looks like this is your first time running the shell.\033[0m"
+    echo -e "\033[1;33mWe recommend running the Configure Load Test Settings script in the Edit Configuration menu to set up your configuration files.\n\033[0m"
+  elif [ "$MMLT_NEW_CONFIG" != "true" ]; then
+    echo -e "\033[1;32mUsing exising configuration files!\n\033[0m"
+  fi
+}
+
+function _warn_credentials {
   if [ "$MMLT_AWS_CREDENTIALS" != "true" ]; then
-    echo -e "\033[1;91m\nCredentials file missing or incorrect! "Edit Configuration Files" to set up AWS Credentials!\n\033[0m"
+    echo -e "\033[1;91mCredentials file missing or incorrect! "Edit Configuration Files" to set up AWS Credentials!\n\033[0m"
   elif [ "$MMLT_AWS_CREDENTIALS" == "true" ]; then
-    echo -e "\033[1;32m\nUsing AWS Credentials file!\n\033[0m"
+    echo -e "\033[1;32mUsing AWS Credentials file!\n\033[0m"
   fi
 }
 
-function warn_license {
+function _warn_license {
   if [ "$MMLT_LICENSE" != "true" ]; then
-    echo -e "\033[1;91m\nLicense file missing! Add your license to the /mmlt/config folder.\n\033[0m"
+    echo -e "\033[1;91mLicense file missing! Add your license to the /mmlt/config folder.\n\033[0m"
   elif [ "$MMLT_LICENSE" == "true" ]; then
-    echo -e "\033[1;32m\nUsing existing license file!\n\033[0m"
+    echo -e "\033[1;32mUsing existing license file!\n\033[0m"
   fi
 }
 
-function show_menu {
+function _main_menu {
   echo -e "\033[1;36mPlease choose an option:\033[0m"
   echo -e "\033[1;32m1) Load Test Operations\033[0m"
   echo -e "\033[1;0m2) SSH Operations"
   echo -e "\033[1;0m3) Edit Configuration Files"
   echo -e "\033[1;93m4) Drop to bash shell\033[0m"
-  echo -e "\033[1;31m5) Exit script and stop container\033[0m"
+  echo -e "\033[1;31m5) Exit shell and stop container\033[0m"
   read -p "Select an option [1-5]: " option
 }
 
-function show_loadtest_menu {
+function _show_loadtest_menu {
   echo -e "\033[1;36mLoad Test Operations:\033[0m"
   echo -e "\033[1;32m1) Create a new deployment\033[0m"
   echo -e "\033[1;32m2) Start a load test\033[0m"
   echo -e "\033[1;34m3) Get load test status\033[0m"
   echo -e "\033[1;31m4) Stop the load test\033[0m"
-  echo -e "\033[1;0m5) Get deployment info"
+  echo -e "\033[1;0m5) Get deployment details"
   echo -e "\033[1;0m6) Sync deployment"
   echo -e "\033[1;0m7) Reset load test"
   echo -e "\033[1;31m8) Destroy the deployment\033[0m"
@@ -159,7 +183,7 @@ function show_loadtest_menu {
   read -p "Select an option [1-9]: " loadtest_option
 }
 
-function ssh_menu {
+function _ssh_menu {
   echo -e "\033[1;36mSSH Operations:\033[0m"
   echo -e "\033[1;0m1) List available instances"
   echo -e "\033[1;0m2) Coordinator"
@@ -169,7 +193,7 @@ function ssh_menu {
   read -p "Select an option [1-5]: " ssh_option
 }
 
-function config_menu {
+function _config_menu {
   echo -e "\033[1;36mConfiguration File Operations:\033[0m"
   echo -e "\033[1;92m1) Configure Load Test Settings\033[0m"
   echo -e "\033[1;0m2) Edit deployer.json"
@@ -181,27 +205,28 @@ function config_menu {
 }
 
 # Wait for the user to attach
-wait_for_user_attach
+_wait_for_user_attach
 
-show_welcome
-
-warn_credentials
+_show_welcome
+_check_config
+_warn_credentials
+_warn_license
 
 while true; do
-  show_menu
+  _main_menu
   case $option in
   1)
     while true; do
-      show_loadtest_menu
+      _show_loadtest_menu
       case $loadtest_option in
-      1) mmltCreate ;;
-      2) mmltStart ;;
-      3) mmltStatus ;;
-      4) mmltStop ;;
-      5) mmltInfo ;;
-      6) mmltSync ;;
-      7) mmltReset ;;
-      8) mmltDestroy ;;
+      1) _create ;;
+      2) _start ;;
+      3) _status ;;
+      4) _stop ;;
+      5) _info ;;
+      6) _sync ;;
+      7) _reset ;;
+      8) _destroy ;;
       9) break ;;
       *)
         clear
@@ -212,12 +237,12 @@ while true; do
     ;;
   2)
     while true; do
-      ssh_menu
+      _ssh_menu
       case $ssh_option in
-      1) mmltSsh ;;
-      2) mmltSsh coordinator ;;
-      3) mmltSsh proxy ;;
-      4) mmltSsh metrics ;;
+      1) _ssh ;;
+      2) _ssh coordinator ;;
+      3) _ssh proxy ;;
+      4) _ssh metrics ;;
       5) break ;;
       *)
         clear
@@ -228,9 +253,9 @@ while true; do
     ;;
   3)
     while true; do
-      config_menu
+      _config_menu
       case $config_option in
-      1) mmltConfigure ;;
+      1) mmltcfg ;;
       2) nano /mmlt/config/deployer.json ;;
       3) nano /mmlt/config/coordinator.json ;;
       4) nano /mmlt/config/config.json ;;
@@ -243,12 +268,12 @@ while true; do
       esac
     done
     ;;
-  5)
+  4)
     clear
     echo -e "\033[1;33mDropping to bash shell. Type 'exit' to return to the menu.\n\033[0m"
     bash
     ;;
-  6)
+  5)
     echo -e "\033[1;31mExiting script and stopping container...\033[0m"
     exit 0
     ;;
@@ -259,4 +284,4 @@ while true; do
   esac
 done
 
-cleanup
+_cleanup

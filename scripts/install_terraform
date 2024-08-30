@@ -14,7 +14,7 @@
 # AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-# File: tools/buildTerraform
+# File: scripts/install_terraform
 
 # Detect OS and architecture
 OS=$(uname | tr '[:upper:]' '[:lower:]')
@@ -34,11 +34,6 @@ case $ARCH in
         ;;
 esac
 
-# Fetch the latest Terraform version
-TERRAFORM_VERSION=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | jq -r .tag_name | sed 's/^v//')
-
 # Download and unzip Terraform
 curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_${OS}_${ARCH}.zip
 unzip terraform_${TERRAFORM_VERSION}_${OS}_${ARCH}.zip -d /terraform
-echo "#!/bin/bash\nexport TERRAFORM_VERSION=$TERRAFORM_VERSION" >> /terraform/setTerraformVersion
-chmod +x /terraform/setTerraformVersion
