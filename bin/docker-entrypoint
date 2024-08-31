@@ -18,14 +18,28 @@
 
 function _sshAgent {
     echo "[INFO]: Adding SSH key to the agent..."
+
+    # Check if ssh-agent is running
     if [ -z "$(pgrep ssh-agent)" ]; then
         echo "[INFO]: Starting ssh-agent..."
         eval $(ssh-agent -s)
     else
         echo "[WARN]: ssh-agent is already running..."
     fi
-    echo "[INFO]: Adding the key..."
-    ssh-add /root/.ssh/id_rsa
+
+    # Check if the SSH key already exists in /mmlt/config
+    if [ -f /mmlt/config/ssh/id_rsa ] && [ -f /mmlt/config/ssh/id_rsa.pub ]; then
+        echo "[INFO]: Found existing SSH key in /mmlt/config. Adding to ssh-agent..."
+        ssh-add /mmlt/config/ssh/id_rsa
+        echo "[INFO]: Restoring SSH keys from /mmlt/config/ssh"
+        cp -f /mmlt/config/ssh/id_rsa /mmlt/config/ssh/id_rsa.pub /root/.ssh/
+    else
+        echo "[WARN]: No SSH key found in /mmlt/config. Using default key from /root/.ssh/"
+        mkdir -p /mmlt/config/ssh
+        cp /root/.ssh/id_rsa /root/.ssh/id_rsa.pub /mmlt/config/ssh/
+        ssh-add /mmlt/config/ssh/id_rsa
+        echo "[INFO]: SSH key copied to /mmlt/config/ssh and added to agent"
+    fi
 }
 
 function _checkConfig {
@@ -34,16 +48,22 @@ function _checkConfig {
         export MMLT_NEW_CONFIG=true
         echo "[WARN]: Deployer configuration file not found. Copying ..."
         cp /mmlt/config.default/deployer.sample.json /mmlt/config/deployer.json
-        # Configuring Load Test Version in deployer
-        NEW_VERSION=$(curl -s https://api.github.com/repos/mattermost/mattermost-load-test-ng/releases/latest | jq -r .tag_name | sed 's/^v//')
+    else
+        echo "[INFO]: Deployer configuration file found."
     fi
+
     if [ ! -f /mmlt/config/config.json ]; then
         echo "[WARN]: Config configuration file not found. Copying..."
         cp /mmlt/config.default/config.sample.json /mmlt/config/config.json
+    else
+        echo "[INFO]: Load test config.json found."
     fi
+
     if [ ! -f /mmlt/config/coordinator.json ]; then
         echo "[WARN]: Coordinator configuration file not found. Copying..."
         cp /mmlt/config.default/coordinator.sample.json /mmlt/config/coordinator.json
+    else
+        echo "[INFO]: Coordinator config file found."
     fi
 }
 
@@ -55,12 +75,24 @@ function _checkTerraform {
         echo "[ERROR]: Terraform not found!"
         exit 1
     fi
+}
 
-    echo "[INFO]: Checking Terraform Credentials ..."
-    # Check if the credentials file exists
+function _checkAWS {
+    echo "[INFO]: Setting AWS Variables ..."
+    export AWS_SHARED_CREDENTIALS_FILE=/mmlt/config/credentials
+    export AWS_PROFILE=mm-loadtest
+
+    echo "[INFO]: Checking AWS Credentials ..."
     if [ -f /mmlt/config/credentials ]; then
         echo "[INFO]: Credentials file found. Using the credentials file."
         export MMLT_AWS_CREDENTIALS=true
+        AWS_USERNAME=$(aws sts get-caller-identity --query "Arn" --output text 2>/dev/null | cut -d '/' -f 2)
+        if [ $? -eq 0 ]; then
+            echo "[INFO]: AWS Username: $AWS_USERNAME"
+        else
+            echo "[ERROR]: Unable to fetch AWS username. Please check credentials."
+            exit 1
+        fi
     else
         echo "[WARN]: No credentials found. Please provide a credentials file in /mmlt/config."
         export MMLT_AWS_CREDENTIALS=false
@@ -69,7 +101,6 @@ function _checkTerraform {
 
 function _checkLicense {
     echo "[INFO]: Checking for a license file ..."
-    # Check if the license file exists
     if [ -f /mmlt/config/license ]; then
         echo "[INFO]: License file found."
         export MMLT_LICENSE=true
@@ -79,45 +110,18 @@ function _checkLicense {
     fi
 }
 
-function _checkUpdates {
-    echo "[INFO]: Checking for updates ..."
-    # GitHub API URL for the repository's tags
-    REPO_API_URL="https://api.github.com/repos/maxwellpower/mm-loadtest-shell/tags"
-
-    # Fetch the tags, filter out 'latest', and get the most recent tag
-    MOST_RECENT_TAG=$(curl -s $REPO_API_URL | grep '"name"' | grep -v '"latest"' | head -n 1 | awk -F'"' '{print $4}')
-
-    # If the tag fetch fails or there are no tags, fall back to $MMLT_SHELL_VERSION
-    if [ -z "$MOST_RECENT_TAG" ]; then
-        MOST_RECENT_TAG=$MMLT_SHELL_VERSION
-    fi
-
-    # Compare versions
-    if [ "$MMLT_SHELL_VERSION" != "$MOST_RECENT_TAG" ]; then
-        # Strip leading 'v' from versions if present
-        RUNNING_VERSION=$(echo $MMLT_SHELL_VERSION | sed 's/^v//')
-        LATEST_VERSION=$(echo $MOST_RECENT_TAG | sed 's/^v//')
-
-        # Compare the numeric parts of the versions
-        if [ "$(printf '%s\n' "$LATEST_VERSION" "$RUNNING_VERSION" | sort -V | head -n1)" != "$RUNNING_VERSION" ]; then
-            echo -e "\033[1;31m[WARN]: A newer version (v$MOST_RECENT_TAG) is available. Please update your shell.\033[0m"
-            export MMLT_SHELL_UPDATE_AVAILABLE=$MOST_RECENT_TAG
-        fi
-    fi
+function _systemSetup {
+    echo "[INFO]: Updating PATH ..."
+    export PATH="$PATH:/mmlt/bin"
 }
 
-function _linkTerraformStateFiles {
-    mkdir -p /mmlt/config/terraform_state
-    ln -s /var/lib/mattermost-load-test-ng /mmlt/config/terraform_state
-}
-
-echo "[INFO]: Initilizing Load Test Shell v$MMLT_SHELL_VERSION ..."
+echo "[INFO]: Initializing Load Test Shell v$MMLT_SHELL_VERSION ..."
 _sshAgent
 _checkConfig
 _checkTerraform
+_checkAWS
 _checkLicense
-_checkUpdates
-export PATH=/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/mmlt/bin
+_systemSetup
 echo "[INFO]: Setup Complete. Starting Shell ..."
 
 # Pass control to the CMD
