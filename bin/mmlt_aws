@@ -1,0 +1,157 @@
+#!/bin/bash
+
+# Mattermost Load Test Shell
+
+# Copyright (c) 2024 Maxwell Power
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom
+# the Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+# AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+# File: bin/mmltaws
+
+# Function to get the IAM username with error handling
+function get_username {
+    USERNAME=$(aws sts get-caller-identity --query "Arn" --output text 2>/dev/null | cut -d '/' -f 2)
+    if [ -z "$USERNAME" ]; then
+        echo "[ERROR]: Unable to fetch IAM username. Please check your AWS credentials or configuration."
+        exit 1
+    fi
+    echo "$USERNAME"
+}
+
+# Function to check AWS CLI configuration
+function check_aws_configuration {
+    echo "[INFO]: Checking AWS CLI configuration..."
+    echo "Current region: $(aws configure get region)"
+}
+
+# Function to list attached managed policies for the user
+function list_attached_policies {
+    local username=$1
+    echo "[INFO]: Listing attached policies for $username"
+    aws iam list-attached-user-policies --user-name "$username" --output json | jq '.AttachedPolicies[] | {PolicyName, PolicyArn}'
+}
+
+# Function to list inline policies for the user
+function list_inline_policies {
+    local username=$1
+    echo "[INFO]: Listing inline policies for $username"
+    aws iam list-user-policies --user-name "$username" --output json | jq '.PolicyNames[]'
+}
+
+# Function to list groups the user belongs to and their attached policies
+function list_user_groups_and_policies {
+    local username=$1
+    echo "[INFO]: Listing groups for $username"
+    groups=$(aws iam list-groups-for-user --user-name "$username" --output json | jq -r '.Groups[].GroupName')
+
+    for group in $groups; do
+        echo "[INFO]: Listing attached policies for group $group"
+        aws iam list-attached-group-policies --group-name "$group" --output json | jq '.AttachedPolicies[] | {PolicyName, PolicyArn}'
+    done
+}
+
+# Function to list active EC2 instances
+function list_ec2_instances {
+    echo "[INFO]: Listing active EC2 instances..."
+    aws ec2 describe-instances --filters "Name=instance-state-name,Values=running" --output json | jq '.Reservations[].Instances[] | {InstanceId, InstanceType, State, PrivateIpAddress}'
+}
+
+# Function to check S3 bucket access
+function check_s3_access {
+    local bucket_name=$1
+    echo "[INFO]: Checking S3 bucket access for $bucket_name..."
+    if aws s3 ls "s3://$bucket_name" >/dev/null 2>&1; then
+        echo "[INFO]: S3 bucket access is valid."
+    else
+        echo "[ERROR]: Unable to access S3 bucket $bucket_name. Check permissions."
+    fi
+}
+
+# Function to check active RDS databases
+function list_rds_instances {
+    echo "[INFO]: Listing active RDS instances..."
+    aws rds describe-db-instances --output json | jq '.DBInstances[] | {DBInstanceIdentifier, DBInstanceStatus, Engine, Endpoint}'
+}
+
+# Function to check Elastic Load Balancer (ELB) status
+function list_elb_status {
+    echo "[INFO]: Listing load balancers..."
+    aws elbv2 describe-load-balancers --output json | jq '.LoadBalancers[] | {LoadBalancerName, DNSName, State}'
+}
+
+# Function to check AWS service quotas
+function check_aws_quotas {
+    echo "[INFO]: Checking EC2 instance quotas..."
+    aws service-quotas list-service-quotas --service-code ec2 --output json | jq '.Quotas[] | {QuotaName, Value, Used}'
+}
+
+# Main script starts here
+echo "[INFO]: Fetching current IAM username"
+USERNAME=$(get_username)
+
+echo "Hello, $USERNAME!"
+echo
+
+# Check AWS CLI configuration
+check_aws_configuration
+echo
+
+# Infinite loop for menu
+while true; do
+    # Display menu options
+    echo "Please select an option:"
+    echo "1. List EC2 Instances"
+    echo "2. Check S3 Bucket Access"
+    echo "3. List RDS Instances"
+    echo "4. List IAM Policies"
+    echo "5. Check Elastic Load Balancer Status"
+    echo "6. Check EC2 Instance Quotas"
+    echo "7. Quit"
+
+    # Capture user input
+    read -p "Select an option [1-7]: " option
+
+    # Handle user input
+    case $option in
+        1)
+            list_ec2_instances
+            ;;
+        2)
+            # Prompt for S3 bucket name
+            read -p "Enter the S3 bucket name: " bucket_name
+            check_s3_access "$bucket_name"
+            ;;
+        3)
+            list_rds_instances
+            ;;
+        4)
+            # List IAM policies
+            list_attached_policies "$USERNAME"
+            list_inline_policies "$USERNAME"
+            list_user_groups_and_policies "$USERNAME"
+            ;;
+        5)
+            list_elb_status
+            ;;
+        6)
+            check_aws_quotas
+            ;;
+        7)
+            echo "Quitting..."
+            exit 0
+            ;;
+        *)
+            echo "[ERROR]: Invalid option. Please select a number between 1 and 7."
+            ;;
+    esac
+
+    echo  # Add an empty line for better formatting before showing the menu again
+done

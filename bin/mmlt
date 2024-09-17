@@ -20,7 +20,6 @@
 trap _SIGINT INT
 
 function _SIGINT() {
-  clear
   echo -e "\n\033[1;31mDetected Ctrl+C. Use the menu option to exit the script properly.\n Press any key to continue ...\033[0m"
 }
 
@@ -33,75 +32,65 @@ LOCKFILE="/tmp/loadtest.lock"
 
 if [ -f "$LOCKFILE" ]; then
   clear
-  echo -e "\033[1;33mScript is already running. Type $(exit) from the shell to return to the menu.\n\nReturning to the bash shell ...\n\033[0m"
+  echo -e "\033[1;33mScript is already running. Type 'exit' from the shell to return to the menu.\n\nReturning to the bash shell ...\n\033[0m"
   exit 1 # Exit the current process, returning to the main script loop
 fi
 
 # Create lock file
 touch "$LOCKFILE"
-
 trap _cleanup EXIT
 
 # Load Test Functions
 
 function _create {
   echo -e "\033[1;33mRunning ltctl deployment create ...\033[0m"
-  #go run ./cmd/ltctl deployment create
   ltctl deployment create
   _wait_after_action
 }
 
 function _info {
   echo -e "\033[1;33mRunning ltctl deployment info ...\033[0m"
-  #go run ./cmd/ltctl deployment info
   ltctl deployment info
   _wait_after_action
 }
 
 function _sync {
   echo -e "\033[1;33mRunning ltctl deployment sync ...\033[0m"
-  #go run ./cmd/ltctl deployment sync
   ltctl deployment sync
   _wait_after_action
 }
 
 function _destroy {
   echo -e "\033[1;33mRunning ltctl deployment destroy ...\033[0m"
-  #go run ./cmd/ltctl deployment destroy
   ltctl deployment destroy
   _wait_after_action
 }
 
 function _start {
   echo -e "\033[1;33mRunning ltctl loadtest start ...\033[0m"
-  #go run ./cmd/ltctl loadtest start
   ltctl loadtest start
   _wait_after_action
 }
 
 function _status {
   echo -e "\033[1;33mRunning ltctl loadtest status ...\033[0m"
-  #go run ./cmd/ltctl loadtest status
-  ltctl loadtest status
+  watch -n 10 ltctl loadtest status
   _wait_after_action
 }
 
 function _stop {
   echo -e "\033[1;33mRunning ltctl loadtest stop ...\033[0m"
-  #go run ./cmd/ltctl loadtest stop
   ltctl loadtest stop
   _wait_after_action
 }
 
 function _ssh {
   echo -e "\033[1;33mRunning ltctl ssh $@ ...\033[0m"
-  #go run ./cmd/ltctl ssh "$@"
   ltctl ssh "$@"
 }
 
 function _reset {
   echo -e "\033[1;33mRunning ltctl loadtest reset ...\033[0m"
-  #go run ./cmd/ltctl loadtest reset
   ltctl loadtest reset
   _wait_after_action
 }
@@ -124,29 +113,22 @@ function _show_welcome {
   clear
   echo -e "\033[1;34mWelcome to the Mattermost CS Load Testing Shell v$MMLT_SHELL_VERSION\033[0m"
   echo "This shell is based on the mattermost-load-test-ng project"
-  echo -e "See https://github.com/mattermost/mattermost-load-test-ng/blob/master/docs/terraform_loadtest.md for detailed usage details.\n"
-}
-
-function _check_updates {
-  # Compare the numeric parts of the versions
-  if [ "$MMLT_SHELL_VERSION" != "$MMLT_SHELL_UPDATE_AVAILABLE" ]; then
-    echo -e "\033[1;31m[WARN]: A newer version (v$MMLT_SHELL_UPDATE_AVAILABLE) is available. Please update your shell.\n\033[0m"
-  fi
+  echo -e "See https://github.com/mattermost/mattermost-load-test-ng/blob/master/docs/terraform_loadtest.md\nfor detailed usage details.\n"
 }
 
 function _check_config {
   if [ "$MMLT_NEW_CONFIG" == "true" ]; then
     echo -e "\033[1;33mIt looks like this is your first time running the shell.\033[0m"
     echo -e "\033[1;33mWe recommend running the Configure Load Test Settings script in the Edit Configuration menu to set up your configuration files.\n\033[0m"
-  elif [ "$MMLT_NEW_CONFIG" != "true" ]; then
-    echo -e "\033[1;32mUsing exising configuration files!\n\033[0m"
+  else
+    echo -e "\033[1;32mUsing existing configuration files!\n\033[0m"
   fi
 }
 
 function _warn_credentials {
   if [ "$MMLT_AWS_CREDENTIALS" != "true" ]; then
     echo -e "\033[1;91mCredentials file missing or incorrect! "Edit Configuration Files" to set up AWS Credentials!\n\033[0m"
-  elif [ "$MMLT_AWS_CREDENTIALS" == "true" ]; then
+  else
     echo -e "\033[1;32mUsing AWS Credentials file!\n\033[0m"
   fi
 }
@@ -154,134 +136,138 @@ function _warn_credentials {
 function _warn_license {
   if [ "$MMLT_LICENSE" != "true" ]; then
     echo -e "\033[1;91mLicense file missing! Add your license to the /mmlt/config folder.\n\033[0m"
-  elif [ "$MMLT_LICENSE" == "true" ]; then
+  else
     echo -e "\033[1;32mUsing existing license file!\n\033[0m"
   fi
 }
 
 function _main_menu {
-  echo -e "\033[1;36mPlease choose an option:\033[0m"
-  echo -e "\033[1;32m1) Load Test Operations\033[0m"
-  echo -e "\033[1;0m2) SSH Operations"
-  echo -e "\033[1;0m3) Edit Configuration Files"
-  echo -e "\033[1;93m4) Drop to bash shell\033[0m"
-  echo -e "\033[1;31m5) Exit shell and stop container\033[0m"
-  read -p "Select an option [1-5]: " option
+  while true; do
+    echo -e "\033[1;36mPlease choose an option:\033[0m"
+    echo -e "\033[1;32m1) Load Test Operations\033[0m"
+    echo -e "\033[1;0m2) Edit Configuration Files"
+    echo -e "\033[1;0m3) SSH Operations"
+    echo -e "\033[1;0m4) Probe AWS Credentials"
+    echo -e "\033[1;93m5) Drop to bash shell\033[0m"
+    echo -e "\033[1;31m6) Exit shell and stop container\033[0m"
+    local option
+    read -p "Select an option [1-6]: " option
+
+    case $option in
+    1) _show_loadtest_menu ;;
+    2) _config_menu ;;
+    3) _ssh_menu ;;
+    4) mmlt_aws ;;
+    5) bash ;;
+    6)
+      echo -e "\033[1;31mExiting script and stopping container...\033[0m"
+      exit 0
+      ;;
+    *) echo -e "\033[1;31mInvalid option. Please select again.\033[0m" ;;
+    esac
+  done
 }
 
 function _show_loadtest_menu {
-  echo -e "\033[1;36mLoad Test Operations:\033[0m"
-  echo -e "\033[1;32m1) Create a new deployment\033[0m"
-  echo -e "\033[1;32m2) Start a load test\033[0m"
-  echo -e "\033[1;34m3) Get load test status\033[0m"
-  echo -e "\033[1;31m4) Stop the load test\033[0m"
-  echo -e "\033[1;0m5) Get deployment details"
-  echo -e "\033[1;0m6) Sync deployment"
-  echo -e "\033[1;0m7) Reset load test"
-  echo -e "\033[1;31m8) Destroy the deployment\033[0m"
-  echo -e "\033[1;35m9) Back to main menu\033[0m"
-  read -p "Select an option [1-9]: " loadtest_option
-}
+  while true; do
+    echo -e "\033[1;36mLoad Test Operations:\033[0m"
+    echo -e "\033[1;32m1) Create a new deployment\033[0m"
+    echo -e "\033[1;32m2) Start a load test\033[0m"
+    echo -e "\033[1;34m3) Watch load test status\033[0m"
+    echo -e "\033[1;31m4) Stop the load test\033[0m"
+    echo -e "\033[1;0m5) Get deployment details"
+    echo -e "\033[1;0m6) Sync deployment"
+    echo -e "\033[1;0m7) Reset load test"
+    echo -e "\033[1;31m8) Destroy the deployment\033[0m"
+    echo -e "\033[1;35m9) Back to main menu\033[0m"
+    local loadtest_option
+    read -p "Select an option [1-9]: " loadtest_option
 
-function _ssh_menu {
-  echo -e "\033[1;36mSSH Operations:\033[0m"
-  echo -e "\033[1;0m1) List available instances"
-  echo -e "\033[1;0m2) Coordinator"
-  echo -e "\033[1;0m3) Proxy"
-  echo -e "\033[1;0m4) Metrics/Prometheus/Grafana"
-  echo -e "\033[1;35m5) Back to main menu\033[0m"
-  read -p "Select an option [1-5]: " ssh_option
+    case $loadtest_option in
+    1) _create ;;
+    2) _start ;;
+    3) _status ;;
+    4) _stop ;;
+    5) _info ;;
+    6) _sync ;;
+    7) _reset ;;
+    8) _destroy ;;
+    9) break ;;
+    *) echo -e "\033[1;31mInvalid option. Please select again.\033[0m" ;;
+    esac
+  done
 }
 
 function _config_menu {
-  echo -e "\033[1;36mConfiguration File Operations:\033[0m"
-  echo -e "\033[1;92m1) Configure Load Test Settings\033[0m"
-  echo -e "\033[1;0m2) Edit deployer.json"
-  echo -e "\033[1;0m3) Edit coordinator.json"
-  echo -e "\033[1;0m4) Edit config.json"
-  echo -e "\033[1;0m5) Edit AWS Credentials\033[0m"
-  echo -e "\033[1;35m6) Back to main menu\033[0m"
-  read -p "Select an option [1-6]: " config_option
+  while true; do
+    echo -e "\033[1;36mConfiguration File Operations:\033[0m"
+    echo -e "\033[1;92m1) Configure Load Test Settings\033[0m"
+    echo -e "\033[1;0m2) Edit deployer.json"
+    echo -e "\033[1;0m3) Edit coordinator.json"
+    echo -e "\033[1;0m4) Edit config.json"
+    echo -e "\033[1;0m5) Edit AWS Credentials\033[0m"
+    echo -e "\033[1;35m6) Back to main menu\033[0m"
+    local config_option
+    read -p "Select an option [1-6]: " config_option
+
+    case $config_option in
+    1) mmlt_cfg ;; # Assuming `mmlt_cfg` is a predefined function to configure settings
+    2) nano /mmlt/config/deployer.json ;;
+    3) nano /mmlt/config/coordinator.json ;;
+    4) nano /mmlt/config/config.json ;;
+    5) nano /mmlt/config/credentials ;;
+    6) break ;;
+    *) echo -e "\033[1;31mInvalid option. Please select again.\033[0m" ;;
+    esac
+  done
 }
 
-# Wait for the user to attach
-_wait_for_user_attach
+function _ssh_menu {
+  while true; do
+    echo -e "\033[1;36mSSH Operations:\033[0m"
+    echo -e "\033[1;0m1) List available instances"
+    echo -e "\033[1;0m2) SSH into Coordinator"
+    echo -e "\033[1;0m3) SSH into Proxy"
+    echo -e "\033[1;0m4) SSH into Metrics/Prometheus/Grafana"
+    echo -e "\033[1;93m5) Drop to bash shell\033[0m"
+    echo -e "\033[1;35m6) Back to main menu\033[0m"
+    local ssh_option
+    read -p "Select an option [1-6]: " ssh_option
 
+    case $ssh_option in
+    1) _ssh ;;
+    2) _ssh coordinator ;;
+    3) _ssh proxy ;;
+    4) _ssh metrics ;;
+    5)
+      echo -e "\033[1;33mDropping to bash shell. Type 'exit' to return to the menu.\n\033[0m"
+      bash
+      ;;
+    6) break ;;
+    *) echo -e "\033[1;31mInvalid option. Please select again.\033[0m" ;;
+    esac
+  done
+}
+
+function mmlt_aws {
+  echo -e "\033[1;33mRunning AWS credentials probe ...\033[0m"
+  if aws sts get-caller-identity; then
+    echo -e "\033[1;32mAWS credentials are valid.\033[0m"
+  else
+    echo -e "\033[1;31mAWS credentials invalid or missing. Please check /mmlt/config/credentials.\033[0m"
+  fi
+}
+
+# Main entry point
+_wait_for_user_attach
 _show_welcome
 _check_config
 _warn_credentials
 _warn_license
 
+# Main loop
 while true; do
   _main_menu
-  case $option in
-  1)
-    while true; do
-      _show_loadtest_menu
-      case $loadtest_option in
-      1) _create ;;
-      2) _start ;;
-      3) _status ;;
-      4) _stop ;;
-      5) _info ;;
-      6) _sync ;;
-      7) _reset ;;
-      8) _destroy ;;
-      9) break ;;
-      *)
-        clear
-        echo -e "\033[1;31mInvalid option. Please select again.\n\033[0m"
-        ;;
-      esac
-    done
-    ;;
-  2)
-    while true; do
-      _ssh_menu
-      case $ssh_option in
-      1) _ssh ;;
-      2) _ssh coordinator ;;
-      3) _ssh proxy ;;
-      4) _ssh metrics ;;
-      5) break ;;
-      *)
-        clear
-        echo -e "\033[1;31mInvalid option. Please select again.\n\033[0m"
-        ;;
-      esac
-    done
-    ;;
-  3)
-    while true; do
-      _config_menu
-      case $config_option in
-      1) mmltcfg ;;
-      2) nano /mmlt/config/deployer.json ;;
-      3) nano /mmlt/config/coordinator.json ;;
-      4) nano /mmlt/config/config.json ;;
-      5) nano /mmlt/config/credentials ;;
-      6) break ;;
-      *)
-        clear
-        echo -e "\033[1;31mInvalid option. Please select again.\n\033[0m"
-        ;;
-      esac
-    done
-    ;;
-  4)
-    clear
-    echo -e "\033[1;33mDropping to bash shell. Type 'exit' to return to the menu.\n\033[0m"
-    bash
-    ;;
-  5)
-    echo -e "\033[1;31mExiting script and stopping container...\033[0m"
-    exit 0
-    ;;
-  *)
-    clear
-    echo -e "\033[1;31mInvalid option. Please select again.\n\033[0m"
-    ;;
-  esac
 done
 
 _cleanup

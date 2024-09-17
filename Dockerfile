@@ -14,21 +14,28 @@
 
 # File: Dockerfile
 
-ARG MMLT_SHELL_VERSION=1.0.0
+ARG MMLT_SHELL_VERSION=1.0.1
 
 # Pin Dependencies
+ARG MMLT_VERSION=master
 ARG GO_VERSION=1.23
-ARG ALPINE_VERSION=3.20
-ARG TERRAFORM_VERSION=1.9.5
-ARG MMLT_VERSION=1.20.0
+ARG DEBIAN_VERSION=bookworm
+ARG TERRAFORM_VERSION=1.6.6
 
 # STAGE 1: Build Terraform
-FROM alpine:${ALPINE_VERSION} AS terraform
+FROM debian:${DEBIAN_VERSION} AS terraform
 
 ARG TERRAFORM_VERSION
 ENV TERRAFORM_VERSION=$TERRAFORM_VERSION
 
-RUN apk add --no-cache curl unzip jq bash
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    bash \
+    jq \
+    curl \
+    unzip && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY /scripts /build
 RUN chmod -R +x /build
@@ -36,31 +43,48 @@ RUN chmod -R +x /build
 WORKDIR /build
 RUN ./install_terraform
 
-# STAGE 2: Download Load Test Repo
-FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS mmlt
+# STAGE 2: Build Load Test Binaries
+FROM golang:${GO_VERSION} AS mmlt
 
 ARG MMLT_VERSION
 ENV MMLT_VERSION=${MMLT_VERSION}
 
 # Install necessary packages
-RUN apk add --no-cache curl git jq bash
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    bash \
+    jq \
+    curl \
+    tar \
+    git && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN git clone --depth=1 --branch v${MMLT_VERSION} --no-tags https://github.com/mattermost/mattermost-load-test-ng.git /mmlt \
-    && cp -r /mmlt/config/ /mmlt/config.default \
-    && rm -rf /mmlt/.git /mmlt/.github /mmlt/config/*.sample.*
+RUN git clone --depth=1 --branch ${MMLT_VERSION} --no-tags https://github.com/mattermost/mattermost-load-test-ng.git /mmlt \
+    && cp -r /mmlt/config/ /mmlt/config.default
 
 WORKDIR /mmlt
 
-RUN go build -o /mmlt/bin/ltctl ./cmd/ltctl
-#RUN go build -o /mmlt/bin/ltagent ./cmd/ltagent
-#RUN go build -o /mmlt/bin/ltapi ./cmd/ltapi
-#RUN go build -o /mmlt/bin/ltassist ./cmd/ltassist
-#RUN go build -o /mmlt/bin/ltcoordinator ./cmd/ltcoordinator
-#RUN go build -o /mmlt/bin/metricswatcher ./cmd/metricswatcher
+# Build binaries
+RUN go build -o /mmlt/bin/ltctl ./cmd/ltctl \
+    && go build -o /mmlt/bin/ltagent ./cmd/ltagent \
+    && go build -o /mmlt/bin/ltapi ./cmd/ltapi \
+    && go build -o /mmlt/bin/ltassist ./cmd/ltassist \
+    && go build -o /mmlt/bin/ltcoordinator ./cmd/ltcoordinator \
+    && go build -o /mmlt/bin/metricswatcher ./cmd/metricswatcher \
+    && go build -o /mmlt/bin/ltkeycloak ./cmd/ltkeycloak \
+    && chmod -R +x /mmlt/bin
+
+# Prepare for packaging
+RUN mkdir -p /mmlt/dist/build/mattermost-load-test-ng-linux-amd64/bin && mkdir -p /mmlt/dist/build/mattermost-load-test-ng-linux-amd64/config \
+    && cp /mmlt/bin/ltagent /mmlt/bin/ltapi /mmlt/dist/build/mattermost-load-test-ng-linux-amd64/bin \
+    && cp /mmlt/config/config.sample.json /mmlt/config/coordinator.sample.json /mmlt/config/simplecontroller.sample.json /mmlt/config/simulcontroller.sample.json /mmlt/dist/build/mattermost-load-test-ng-linux-amd64/config \
+    && tar -C /mmlt/dist/build/ -czf /mmlt/dist/mattermost-load-test-ng-linux-amd64.tar.gz mattermost-load-test-ng-linux-amd64 \
+    && rm -rf /mmlt/dist/build/ \
+    && rm -rf /mmlt/.git /mmlt/.github /mmlt/config/*.sample.* \
+    && rm -rf .editorconfig .gitignore .gitignore .gitignore Dockerfile Makefile api/ cmd/ comparison/ coordinator/ defaults/ deployment/ examples/ go.mod go.sum loadtest/ logger/ performance/
 
 # STAGE 3: Final stage
-#FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS final
-FROM alpine:${ALPINE_VERSION} AS final
+FROM debian:${DEBIAN_VERSION} AS final
 
 ARG MMLT_SHELL_VERSION
 ARG TERRAFORM_VERSION
@@ -70,9 +94,6 @@ ENV MMLT_SHELL_VERSION=${MMLT_SHELL_VERSION}
 ENV TERRAFORM_VERSION=${TERRAFORM_VERSION}
 ENV MMLT_VERSION=${MMLT_VERSION}
 
-ENV AWS_SHARED_CREDENTIALS_FILE=/mmlt/config/credentials
-ENV AWS_PROFILE=mm-loadtest
-
 LABEL MAINTAINER="maxwell.power@mattermost.com"
 LABEL org.opencontainers.image.title="mm-loadtest-shell"
 LABEL org.opencontainers.image.description="Mattermost Load Test Shell"
@@ -80,29 +101,34 @@ LABEL org.opencontainers.image.authors="Maxwell Power"
 LABEL org.opencontainers.image.source="https://github.com/maxwellpower/mm-loadtest-shell"
 LABEL org.opencontainers.image.licenses=MIT
 
-# Install necessary packages and SSH setup
-RUN apk add --no-cache openssh bash nano jq curl aws-cli \
-    && chmod -R +x /usr/local/bin \
-    && ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
-
 # Copy necessary files from builder stages
 COPY --from=terraform /terraform/terraform /usr/local/bin/terraform
 COPY --from=mmlt /mmlt /mmlt
 COPY bin/ /usr/local/bin/
 
+# Install necessary runtime packages
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates bash iputils-ping net-tools dnsutils traceroute \
+    openssh-client \
+    nano \
+    jq \
+    traceroute \
+    postgresql-client \
+    curl \
+    watch \
+    awscli less groff && \
+    rm -rf /var/lib/apt/lists/* && \
+    ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
+
 # Set working directory
 WORKDIR /mmlt
 
-# install dependencies
-#RUN go mod tidy
-
-# Run ltctl and install dependencies
-#RUN go run ./cmd/ltctl help
-
 # Volume for configuration persistence
 VOLUME ["/mmlt/config"]
+VOLUME ["/var/lib/mattermost-load-test-ng"]
 
+# Entry point and healthcheck
 ENTRYPOINT ["docker-entrypoint"]
 CMD ["mmlt"]
-
 HEALTHCHECK CMD [ -f /tmp/loadtest.lock ] || exit 1

@@ -27,7 +27,7 @@ backup_config_file() {
   local backup_dir="$2"
   local timestamp=$(date +"%Y%m%d%H%M%S")
   mkdir -p "$backup_dir"
-  cp "$config_file" "$backup_dir/$(basename $config_file).$timestamp"
+  cp "$config_file" "$backup_dir/$(basename "$config_file").$timestamp"
 }
 
 # Function to prompt user for input with a default value
@@ -54,38 +54,32 @@ configure_deployer_json() {
   AWSProfile=$(prompt "AWSProfile" "Enter AWS Profile" "mm-loadtest")
   AWSRegion=$(prompt "AWSRegion" "Enter AWS Region" "us-east-1")
   AWSAMI=$(prompt "AWSAMI" "Enter AWS AMI" "ami-003d3d03cfe1b0468")
-  ClusterName=$(prompt "ClusterName" "Enter Cluster Name" "loadtest")
   AppInstanceCount=$(prompt "AppInstanceCount" "Enter App Instance Count" "1")
   AppInstanceType=$(prompt "AppInstanceType" "Enter App Instance Type" "c7i.xlarge")
   AgentInstanceCount=$(prompt "AgentInstanceCount" "Enter Agent Instance Count" "2")
   AgentInstanceType=$(prompt "AgentInstanceType" "Enter Agent Instance Type" "c7i.xlarge")
   EnableAgentFullLogs=$(prompt "EnableAgentFullLogs" "Enable Agent Full Logs? (true/false)" "true")
   ProxyInstanceType=$(prompt "ProxyInstanceType" "Enter Proxy Instance Type" "c7i.xlarge")
-  SSHPublicKey=$(prompt "SSHPublicKey" "Enter SSH Public Key Path" "~/.ssh/id_rsa.pub")
   MattermostDownloadURL=$(prompt "MattermostDownloadURL" "Enter Mattermost Download URL" "https://latest.mattermost.com/mattermost-enterprise-linux")
 
   LATEST_VERSION=$(get_latest_loadtest_version)
   LoadTestDownloadURL=$(prompt "LoadTestDownloadURL" "Enter LoadTest Download URL" "https://github.com/mattermost/mattermost-load-test-ng/releases/download/v${LATEST_VERSION}/mattermost-load-test-ng-v${LATEST_VERSION}-linux-amd64.tar.gz")
 
-  MattermostLicenseFile=$(prompt "MattermostLicenseFile" "Enter Mattermost License File Path" "")
-  DBDumpURI=$(prompt "DBDumpURI" "Enter Database Dump URI" "")
+  MattermostLicenseFile=$(prompt "MattermostLicenseFile" "Enter Mattermost License File Path" "/mmlt/config/license")
 
   jq ".AWSProfile=\"$AWSProfile\" | \
       .AWSRegion=\"$AWSRegion\" | \
       .AWSAMI=\"$AWSAMI\" | \
-      .ClusterName=\"$ClusterName\" | \
       .AppInstanceCount=$AppInstanceCount | \
       .AppInstanceType=\"$AppInstanceType\" | \
       .AgentInstanceCount=$AgentInstanceCount | \
       .AgentInstanceType=\"$AgentInstanceType\" | \
       .EnableAgentFullLogs=$EnableAgentFullLogs | \
       .ProxyInstanceType=\"$ProxyInstanceType\" | \
-      .SSHPublicKey=\"$SSHPublicKey\" | \
       .MattermostDownloadURL=\"$MattermostDownloadURL\" | \
       .LoadTestDownloadURL=\"$LoadTestDownloadURL\" | \
-      .MattermostLicenseFile=\"$MattermostLicenseFile\" | \
-      .DBDumpURI=\"$DBDumpURI\"" \
-      $DEPLOYER_CONFIG_FILE > /tmp/deployer.json.tmp && mv /tmp/deployer.json.tmp $DEPLOYER_CONFIG_FILE
+      .MattermostLicenseFile=\"$MattermostLicenseFile\"" \
+    "$DEPLOYER_CONFIG_FILE" >/tmp/deployer.json.tmp && mv /tmp/deployer.json.tmp "$DEPLOYER_CONFIG_FILE"
 
   echo "deployer.json has been updated and backed up."
 }
@@ -96,10 +90,6 @@ configure_lt_config_json() {
 
   backup_config_file "$LT_CONFIG_FILE" "$BACKUP_DIR"
 
-  ServerURL=$(prompt "ServerURL" "Enter Mattermost Server URL" "http://localhost:8065")
-  WebSocketURL=$(prompt "WebSocketURL" "Enter WebSocket URL" "ws://localhost:8065")
-  AdminEmail=$(prompt "AdminEmail" "Enter Admin Email" "sysadmin@sample.mattermost.com")
-  AdminPassword=$(prompt "AdminPassword" "Enter Admin Password" "Sys@dmin-sample1")
   MaxActiveUsers=$(prompt "MaxActiveUsers" "Enter Max Active Users" "2000")
   NumTeams=$(prompt "NumTeams" "Enter Number of Teams" "2")
   NumChannels=$(prompt "NumChannels" "Enter Number of Channels" "10")
@@ -108,18 +98,14 @@ configure_lt_config_json() {
   PercentPrivateChannels=$(prompt "PercentPrivateChannels" "Enter Percent of Private Channels" "0.1")
   PercentDirectChannels=$(prompt "PercentDirectChannels" "Enter Percent of Direct Channels" "0.6")
 
-  jq ".ConnectionConfiguration.ServerURL=\"$ServerURL\" | \
-      .ConnectionConfiguration.WebSocketURL=\"$WebSocketURL\" | \
-      .ConnectionConfiguration.AdminEmail=\"$AdminEmail\" | \
-      .ConnectionConfiguration.AdminPassword=\"$AdminPassword\" | \
-      .UsersConfiguration.MaxActiveUsers=$MaxActiveUsers | \
+  jq ".UsersConfiguration.MaxActiveUsers=$MaxActiveUsers | \
       .InstanceConfiguration.NumTeams=$NumTeams | \
       .InstanceConfiguration.NumChannels=$NumChannels | \
       .InstanceConfiguration.NumPosts=$NumPosts | \
       .InstanceConfiguration.PercentPublicChannels=$PercentPublicChannels | \
       .InstanceConfiguration.PercentPrivateChannels=$PercentPrivateChannels | \
       .InstanceConfiguration.PercentDirectChannels=$PercentDirectChannels" \
-      $LT_CONFIG_FILE > /tmp/config.json.tmp && mv /tmp/config.json.tmp $LT_CONFIG_FILE
+    "$LT_CONFIG_FILE" >/tmp/config.json.tmp && mv /tmp/config.json.tmp "$LT_CONFIG_FILE"
 
   echo "config.json has been updated and backed up."
 }
@@ -130,18 +116,16 @@ configure_coordinator_json() {
 
   backup_config_file "$COORDINATOR_CONFIG_FILE" "$BACKUP_DIR"
 
-  PrometheusURL=$(prompt "PrometheusURL" "Enter Prometheus URL" "http://localhost:9090")
   MaxActiveUsers=$(prompt "MaxActiveUsers" "Enter Max Active Users" "2000")
   NumUsersInc=$(prompt "NumUsersInc" "Enter Number of Users to Increase" "8")
   NumUsersDec=$(prompt "NumUsersDec" "Enter Number of Users to Decrease" "8")
   RestTimeSec=$(prompt "RestTimeSec" "Enter Rest Time in Seconds" "2")
 
   jq ".ClusterConfig.MaxActiveUsers=$MaxActiveUsers | \
-      .MonitorConfig.PrometheusURL=\"$PrometheusURL\" | \
       .NumUsersInc=$NumUsersInc | \
       .NumUsersDec=$NumUsersDec | \
       .RestTimeSec=$RestTimeSec" \
-      $COORDINATOR_CONFIG_FILE > /tmp/coordinator.json.tmp && mv /tmp/coordinator.json.tmp $COORDINATOR_CONFIG_FILE
+    "$COORDINATOR_CONFIG_FILE" >/tmp/coordinator.json.tmp && mv /tmp/coordinator.json.tmp "$COORDINATOR_CONFIG_FILE"
 
   echo "coordinator.json has been updated and backed up."
 }

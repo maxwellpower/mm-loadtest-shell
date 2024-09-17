@@ -9,22 +9,18 @@ See the [Terraform Load Test Documentation](https://github.com/mattermost/matter
 1. **Run the Container:**
 
    ```bash
-   docker run --rm -dit --name mmlt ghcr.io/maxwellpower/mm-loadtest-shell
+   docker run --rm -it --name mmlt -v $(pwd)/config:/mmlt/config -v mattermost-load-test-ng-data:/var/lib/mattermost-load-test-ng ghcr.io/maxwellpower/mm-loadtest-shell
    ```
 
-   This command runs the container in detached mode, allowing you to attach to it whenever you're ready to start load testing.
+   - The `/mmlt/config` directory is used to persist this configuration.
+
+       - Mount a local direcory to store your configuration, license, and AWS credentials. Replace `$(pwd)` with the path to your local configuration directory, if needed.
 
 ### Using the Shell
 
-- **Attach to the Container:**
+- **Starting a Load Test:**
 
-   The container starts with an interactive script by default. Attach to the running instance using:
-
-   ```bash
-   docker attach mmlt
-   ```
-
-   Once attached, you can use the interactive menu to perform various load testing tasks. To detach without stopping the container, use `CTRL+P` followed by `CTRL+Q`.
+   Once the container and shell are started , you can use the interactive menu to perform various load testing tasks. To detach without stopping the container, use `CTRL+P` followed by `CTRL+Q`.
 
 - **Launch a New Shell Session:**
 
@@ -53,13 +49,7 @@ aws_access_key_id=YOUR_ACCESS_KEY
 aws_secret_access_key=YOUR_SECRET_KEY
 ```
 
-**Important**: If you don't have this file in your container, the script will prompt you to create one. The `/mmlt/config` directory is used to persist this configuration. You can mount a local directory to persist these credentials across sessions:
-
-```bash
-docker run --rm -dit -v $(pwd)/config:/mmlt/config --name mmlt ghcr.io/maxwellpower/mm-loadtest-shell
-```
-
-Replace `$(pwd)` with the path to your local configuration directory.
+**Important**: If you don't have this file in your container, the script will prompt you to create one.
 
 ### License File
 
@@ -85,10 +75,33 @@ When you attach to the container, you are greeted with an interactive menu that 
 
 ### Manual SSH Access to Hosts
 
-To SSH into the terraformed hosts, use:
+To SSH into the terraformed hosts, use the command line:
 
 ```bash
-go run ./cmd/ltctl ssh <target>
+ltctl ssh <target>
 ```
 
-Where `<target>` can be `coordinator`, `proxy`, `metrics`, or any instance name.
+Where `<target>` can be `coordinator`, `proxy`, `metrics`, or any instance name. You can list all hosts with
+
+```bash
+ltctl ssh list
+```
+
+## Manually build image
+
+To build the image locally, clone this repository, then run docker build. The command below will overwrite the public image with your local build.
+
+Dependencies are set at the top of the Dockerfile. Current defaults:
+
+```bash
+ARG MMLT_VERSION=master
+ARG GO_VERSION=1.23
+ARG DEBIAN_VERSION=bookworm
+ARG TERRAFORM_VERSION=1.6.6
+```
+
+```bash
+git clone https://github.com/maxwellpower/mm-loadtest-shell.git
+cd mm-loadtest-shell
+docker build . --tag ghcr.io/maxwellpower/mm-loadtest-shell
+```
