@@ -14,10 +14,10 @@
 
 # File: Dockerfile
 
-ARG MMLT_SHELL_VERSION=1.0.1
+ARG MMLT_SHELL_VERSION=1.0.2
 
 # Pin Dependencies
-ARG MMLT_VERSION=elasticsearch-lt
+ARG MMLT_VERSION=master
 ARG GO_VERSION=1.23
 ARG DEBIAN_VERSION=bookworm
 ARG TERRAFORM_VERSION=1.6.6
@@ -59,6 +59,7 @@ RUN apt-get update && \
     git && \
     rm -rf /var/lib/apt/lists/*
 
+ADD https://api.github.com/repos/mattermost/mattermost-load-test-ng/git/refs/heads/${MMLT_VERSION} version.json
 RUN git clone --depth=1 --branch ${MMLT_VERSION} --no-tags https://github.com/mattermost/mattermost-load-test-ng.git /mmlt \
     && cp -r /mmlt/config/ /mmlt/config.default
 
@@ -81,7 +82,7 @@ RUN mkdir -p /mmlt/dist/build/mattermost-load-test-ng-linux-amd64/bin && mkdir -
     && tar -C /mmlt/dist/build/ -czf /mmlt/dist/mattermost-load-test-ng-linux-amd64.tar.gz mattermost-load-test-ng-linux-amd64 \
     && rm -rf /mmlt/dist/build/ \
     && rm -rf /mmlt/.git /mmlt/.github /mmlt/config/*.sample.* \
-    && rm -rf .editorconfig .gitignore .gitignore .gitignore Dockerfile Makefile api/ cmd/ comparison/ coordinator/ defaults/ deployment/ examples/ go.mod go.sum loadtest/ logger/ performance/
+    && rm -rf .editorconfig .gitignore .gitignore .gitignore Dockerfile Makefile api/ cmd/ comparison/ coordinator/ defaults/ examples/ go.mod go.sum loadtest/ logger/ performance/
 
 # STAGE 3: Final stage
 FROM debian:${DEBIAN_VERSION} AS final
@@ -113,6 +114,7 @@ RUN apt-get update && \
     openssh-client \
     nano \
     jq \
+    vim \
     traceroute \
     postgresql-client \
     curl \

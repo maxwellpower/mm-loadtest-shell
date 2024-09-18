@@ -1,0 +1,224 @@
+#!/bin/bash
+
+# Mattermost Load Test Shell
+
+# Copyright (c) 2024 Maxwell Power
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom
+# the Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+# AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+# File: bin/mmlt_aws_ops
+
+# Function to prompt for input with a default value
+prompt() {
+  local var_name="$1"
+  local prompt_text="$2"
+  local default_value="$3"
+  read -p "$prompt_text [$default_value]: " input
+  input="${input:-$default_value}"
+  echo "$input"
+}
+
+# Function to check for AWS CLI installation and configuration
+check_aws_cli() {
+  if ! command -v aws &>/dev/null; then
+    echo "[ERROR]: AWS CLI not installed. Please install AWS CLI before proceeding."
+    exit 1
+  fi
+
+  echo "[INFO]: Checking AWS CLI configuration..."
+  if ! aws sts get-caller-identity &>/dev/null; then
+    echo "[ERROR]: AWS credentials are not configured or invalid. Please configure them using 'aws configure'."
+    exit 1
+  fi
+}
+
+# Function to list available DB clusters
+list_db_clusters() {
+  echo "[INFO]: Listing available RDS clusters..."
+  aws rds describe-db-clusters | jq '.DBClusters[] | {DatabaseName: .DatabaseName, DBClusterIdentifier: .DBClusterIdentifier}'
+}
+
+# Function to create a DB snapshot
+create_db_snapshot() {
+  local db_cluster_identifier
+  local snapshot_identifier
+
+  db_cluster_identifier=$(prompt "DB Cluster Identifier" "Enter the existing DB cluster identifier" "my-db-cluster")
+  snapshot_identifier=$(prompt "Snapshot Identifier" "Enter a unique snapshot identifier" "my-db-snapshot-$(date +%Y%m%d)")
+
+  echo "[INFO]: Creating DB cluster snapshot..."
+  aws rds create-db-cluster-snapshot --db-cluster-identifier "$db_cluster_identifier" --db-cluster-snapshot-identifier "$snapshot_identifier"
+
+  if [ $? -eq 0 ]; then
+    echo "[INFO]: Snapshot creation initiated successfully."
+  else
+    echo "[ERROR]: Failed to initiate snapshot creation."
+    exit 1
+  fi
+}
+
+# Function to monitor DB snapshot status
+monitor_db_snapshot() {
+  local snapshot_identifier
+  snapshot_identifier=$(prompt "Snapshot Identifier" "Enter the snapshot identifier to monitor" "my-db-snapshot-$(date +%Y%m%d)")
+
+  echo "[INFO]: Monitoring DB snapshot status..."
+  while true; do
+    status=$(aws rds describe-db-cluster-snapshots | jq -r ".DBClusterSnapshots[] | select(.DBClusterSnapshotIdentifier == \"$snapshot_identifier\") | .Status")
+    echo "[INFO]: Current snapshot status: $status"
+
+    if [[ "$status" == "available" ]]; then
+      echo "[INFO]: Snapshot is ready."
+      break
+    elif [[ "$status" == "failed" ]]; then
+      echo "[ERROR]: Snapshot creation failed."
+      exit 1
+    else
+      echo "[INFO]: Snapshot still in progress, waiting 30 seconds before checking again..."
+      sleep 30
+    fi
+  done
+}
+
+# Function to share DB snapshot with another AWS account
+share_db_snapshot() {
+  local snapshot_identifier
+  local destination_account
+
+  snapshot_identifier=$(prompt "Snapshot Identifier" "Enter the snapshot identifier to share" "my-db-snapshot-$(date +%Y%m%d)")
+  destination_account=$(prompt "Destination AWS Account ID" "Enter the destination AWS account ID" "123456789012")
+
+  echo "[INFO]: Sharing DB snapshot with account ID $destination_account..."
+  aws rds modify-db-cluster-snapshot-attribute --db-cluster-snapshot-identifier "$snapshot_identifier" --attribute-name restore --values-to-add "$destination_account"
+
+  if [ $? -eq 0 ]; then
+    echo "[INFO]: Snapshot shared successfully."
+  else
+    echo "[ERROR]: Failed to share the snapshot."
+    exit 1
+  fi
+}
+
+# Function to restore DB cluster from snapshot
+restore_db_from_snapshot() {
+  local new_db_identifier
+  local snapshot_identifier
+  local engine
+
+  new_db_identifier=$(prompt "New DB Cluster Identifier" "Enter the new DB cluster identifier" "my-restored-db-cluster")
+  snapshot_identifier=$(prompt "Snapshot Identifier" "Enter the snapshot identifier" "my-db-snapshot-$(date +%Y%m%d)")
+  engine=$(prompt "Database Engine" "Enter the database engine (e.g., aurora-postgresql)" "aurora-postgresql")
+
+  echo "[INFO]: Restoring DB cluster from snapshot..."
+  aws rds restore-db-cluster-from-snapshot --db-cluster-identifier "$new_db_identifier" --snapshot-identifier "$snapshot_identifier" --engine "$engine"
+
+  if [ $? -eq 0 ]; then
+    echo "[INFO]: DB restore initiated successfully."
+  else
+    echo "[ERROR]: Failed to initiate DB restore."
+    exit 1
+  fi
+}
+
+# Function to monitor DB restore status
+monitor_db_restore() {
+  local db_identifier
+  db_identifier=$(prompt "DB Cluster Identifier" "Enter the DB cluster identifier to monitor" "my-restored-db-cluster")
+
+  echo "[INFO]: Monitoring DB restore status..."
+  while true; do
+    status=$(aws rds describe-db-clusters | jq -r ".DBClusters[] | select(.DBClusterIdentifier == \"$db_identifier\") | .Status")
+    echo "[INFO]: Current restore status: $status"
+
+    if [[ "$status" == "available" ]]; then
+      echo "[INFO]: DB restore completed successfully."
+      break
+    elif [[ "$status" == "failed" ]]; then
+      echo "[ERROR]: DB restore failed."
+      exit 1
+    else
+      echo "[INFO]: Restore still in progress, waiting 30 seconds before checking again..."
+      sleep 30
+    fi
+  done
+}
+
+# Function to create an S3 bucket
+create_s3_bucket() {
+  local bucket_name
+  bucket_name=$(prompt "S3 Bucket Name" "Enter the name of the new S3 bucket" "my-snapshot-bucket")
+
+  echo "[INFO]: Creating S3 bucket: $bucket_name..."
+  aws s3api create-bucket --bucket "$bucket_name"
+
+  if [ $? -eq 0 ]; then
+    echo "[INFO]: S3 bucket created successfully."
+  else
+    echo "[ERROR]: Failed to create S3 bucket."
+    exit 1
+  fi
+}
+
+# Function to sync S3 buckets
+sync_s3_buckets() {
+  local source_bucket
+  local destination_bucket
+
+  source_bucket=$(prompt "Source S3 Bucket" "Enter the source S3 bucket name" "my-source-bucket")
+  destination_bucket=$(prompt "Destination S3 Bucket" "Enter the destination S3 bucket name" "my-destination-bucket")
+
+  echo "[INFO]: Syncing objects from $source_bucket to $destination_bucket..."
+  aws s3 sync s3://"$source_bucket" s3://"$destination_bucket"
+
+  if [ $? -eq 0 ]; then
+    echo "[INFO]: S3 buckets synced successfully."
+  else
+    echo "[ERROR]: Failed to sync S3 buckets."
+    exit 1
+  fi
+}
+
+# Function to list available options
+main_menu() {
+  while true; do
+    echo "Choose an option:"
+    echo "1) List DB Clusters"
+    echo "2) Create DB Snapshot"
+    echo "3) Monitor DB Snapshot"
+    echo "4) Share DB Snapshot with Another Account"
+    echo "5) Restore DB from Snapshot"
+    echo "6) Monitor DB Restore"
+    echo "7) Create S3 Bucket"
+    echo "8) Sync S3 Buckets"
+    echo "9) Exit"
+
+    read -p "Select an option [1-9]: " option
+
+    case $option in
+      1) list_db_clusters ;;
+      2) create_db_snapshot ;;
+      3) monitor_db_snapshot ;;
+      4) share_db_snapshot ;;
+      5) restore_db_from_snapshot ;;
+      6) monitor_db_restore ;;
+      7) create_s3_bucket ;;
+      8) sync_s3_buckets ;;
+      9) echo "Exiting..."; exit 0 ;;
+      *) echo "[ERROR]: Invalid option. Please select a number between 1 and 9." ;;
+    esac
+  done
+}
+
+# Ensure AWS CLI is installed and configured
+check_aws_cli
+
+# Start the main menu
+main_menu

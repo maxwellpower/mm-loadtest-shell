@@ -87,6 +87,14 @@ Where `<target>` can be `coordinator`, `proxy`, `metrics`, or any instance name.
 ltctl ssh list
 ```
 
+## Environment Variables
+
+### Default Editor
+
+The defaut editor used in the shell is `nano` to use `vi` update your docker run command to add the `DEFAULT_EDITOR` variable.
+
+- `-e DEFAULT_EDITOR=vi`
+
 ## Manually build image
 
 To build the image locally, clone this repository, then run docker build. The command below will overwrite the public image with your local build.
@@ -105,3 +113,101 @@ git clone https://github.com/maxwellpower/mm-loadtest-shell.git
 cd mm-loadtest-shell
 docker build . --tag ghcr.io/maxwellpower/mm-loadtest-shell
 ```
+
+## AWS Load Testing Operations
+
+The **AWS Load Testing Operations Tool** is a bash utility designed to assist in managing AWS resources specifically for load testing environments. It helps in tasks such as creating and restoring RDS snapshots, syncing S3 buckets, and checking the status of database backups and restores. This tool automates several AWS tasks that are required for preparing and managing infrastructure used in load testing.
+
+### Usage
+
+To run the helper script, choose the AWS Operations option from the shell.
+
+Upon running, the script will display a menu that allows you to perform various AWS operations related to database snapshots, restores, S3 bucket operations, and more.
+
+### Script Menu Options
+
+The script presents a menu to select different AWS tasks. Below are the details for each option:
+
+#### 1. List DB Clusters
+
+This option lists all available RDS database clusters in your AWS account. You can use this information to identify the database cluster you want to snapshot or restore.
+
+Example command (run by script):
+
+```bash
+aws rds describe-db-clusters | jq '.DBClusters[] | {DatabaseName: .DatabaseName, DBClusterIdentifier: .DBClusterIdentifier}'
+```
+
+#### 2. Create DB Snapshot
+
+Creates a snapshot of the specified database cluster. The script will prompt for the database cluster identifier and a unique name for the snapshot.
+
+Example command (run by script):
+
+```bash
+aws rds create-db-cluster-snapshot --db-cluster-identifier <cluster-id> --db-cluster-snapshot-identifier <snapshot-id>
+```
+
+#### 3. Monitor DB Snapshot
+
+This option monitors the status of a specific DB snapshot and informs you once the snapshot creation is complete or if it has failed.
+
+Example command (run by script):
+
+```bash
+aws rds describe-db-cluster-snapshots | jq '.DBClusterSnapshots[] | select(.DBClusterSnapshotIdentifier == "<snapshot-id>") | .Status'
+```
+
+#### 4. Share DB Snapshot with Another Account
+
+Allows you to share the snapshot with another AWS account, typically for restoring the database in a different environment, such as a load testing AWS account.
+
+Example command (run by script):
+
+```bash
+aws rds modify-db-cluster-snapshot-attribute --db-cluster-snapshot-identifier <snapshot-id> --attribute-name restore --values-to-add <destination-account-id>
+```
+
+#### 5. Restore DB from Snapshot
+
+Restores a new RDS cluster from an existing snapshot. You will need to provide the snapshot identifier, a new DB cluster identifier, and the database engine.
+
+Example command (run by script):
+
+```bash
+aws rds restore-db-cluster-from-snapshot --db-cluster-identifier <new-db-id> --snapshot-identifier <snapshot-id> --engine <db-engine>
+```
+
+#### 6. Monitor DB Restore
+
+This option monitors the restore process of an RDS cluster. The script will continuously check the status of the restore operation and notify you when it’s complete.
+
+Example command (run by script):
+
+```bash
+aws rds describe-db-clusters | jq '.DBClusters[] | select(.DBClusterIdentifier == "<db-cluster-id>") | .Status'
+```
+
+#### 7. Create S3 Bucket
+
+Creates a new S3 bucket, which is often used for storing database snapshots, logs, or other load testing-related artifacts.
+
+Example command (run by script):
+
+```bash
+aws s3api create-bucket --bucket <bucket-name>
+```
+
+#### 8. Sync S3 Buckets
+
+This option allows you to sync data between two S3 buckets. Typically, this is used to copy data from a production environment to a load testing environment.
+
+Example command (run by script):
+
+```bash
+aws s3 sync s3://<source-bucket> s3://<destination-bucket>
+```
+
+#### 9. Exit
+
+Exits the script.

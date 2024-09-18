@@ -141,6 +141,14 @@ function _warn_license {
   fi
 }
 
+function set_default_editor {
+  if [ -z "${DEFAULT_EDITOR}" ]; then
+    EDITOR="nano"
+  else
+    EDITOR="${DEFAULT_EDITOR}"
+  fi
+}
+
 function _main_menu {
   while true; do
     echo -e "\033[1;36mPlease choose an option:\033[0m"
@@ -148,18 +156,20 @@ function _main_menu {
     echo -e "\033[1;0m2) Edit Configuration Files"
     echo -e "\033[1;0m3) SSH Operations"
     echo -e "\033[1;0m4) Probe AWS Credentials"
-    echo -e "\033[1;93m5) Drop to bash shell\033[0m"
-    echo -e "\033[1;31m6) Exit shell and stop container\033[0m"
+    echo -e "\033[1;0m5) AWS Operations"
+    echo -e "\033[1;93m6) Drop to bash shell\033[0m"
+    echo -e "\033[1;31m7) Exit shell and stop container\033[0m"
     local option
-    read -p "Select an option [1-6]: " option
+    read -p "Select an option [1-7]: " option
 
     case $option in
     1) _show_loadtest_menu ;;
     2) _config_menu ;;
     3) _ssh_menu ;;
-    4) mmlt_aws ;;
-    5) bash ;;
-    6)
+    4) mmlt_aws_creds ;;
+    5) mmlt_aws_ops ;;
+    6) bash ;;
+    7)
       echo -e "\033[1;31mExiting script and stopping container...\033[0m"
       exit 0
       ;;
@@ -211,11 +221,11 @@ function _config_menu {
     read -p "Select an option [1-6]: " config_option
 
     case $config_option in
-    1) mmlt_cfg ;; # Assuming `mmlt_cfg` is a predefined function to configure settings
-    2) nano /mmlt/config/deployer.json ;;
-    3) nano /mmlt/config/coordinator.json ;;
-    4) nano /mmlt/config/config.json ;;
-    5) nano /mmlt/config/credentials ;;
+    1) mmlt_cfg ;;
+    2) $EDITOR /mmlt/config/deployer.json ;;
+    3) $EDITOR /mmlt/config/coordinator.json ;;
+    4) $EDITOR /mmlt/config/config.json ;;
+    5) $EDITOR /mmlt/config/credentials ;;
     6) break ;;
     *) echo -e "\033[1;31mInvalid option. Please select again.\033[0m" ;;
     esac
