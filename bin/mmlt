@@ -148,18 +148,20 @@ function _main_menu {
     echo -e "\033[1;0m2) Edit Configuration Files"
     echo -e "\033[1;0m3) SSH Operations"
     echo -e "\033[1;0m4) Probe AWS Credentials"
-    echo -e "\033[1;93m5) Drop to bash shell\033[0m"
-    echo -e "\033[1;31m6) Exit shell and stop container\033[0m"
+    echo -e "\033[1;0m5) AWS Operations"
+    echo -e "\033[1;93m6) Drop to bash shell\033[0m"
+    echo -e "\033[1;31m7) Exit shell and stop container\033[0m"
     local option
-    read -p "Select an option [1-6]: " option
+    read -p "Select an option [1-7]: " option
 
     case $option in
     1) _show_loadtest_menu ;;
     2) _config_menu ;;
     3) _ssh_menu ;;
-    4) mmlt_aws ;;
-    5) bash ;;
-    6)
+    4) mmlt_aws_creds ;;
+    5) mmlt_aws_ops ;;
+    6) bash ;;
+    7)
       echo -e "\033[1;31mExiting script and stopping container...\033[0m"
       exit 0
       ;;

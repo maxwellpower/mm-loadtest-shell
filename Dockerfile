@@ -14,7 +14,7 @@
 
 # File: Dockerfile
 
-ARG MMLT_SHELL_VERSION=1.0.1
+ARG MMLT_SHELL_VERSION=1.0.2-dev
 
 # Pin Dependencies
 ARG MMLT_VERSION=elasticsearch-lt
