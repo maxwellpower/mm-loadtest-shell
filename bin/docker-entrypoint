@@ -115,6 +115,37 @@ function _systemSetup {
     export PATH="$PATH:/mmlt/bin"
 }
 
+function _check_and_copy_terraform_state {
+    local terraform_state_dir="/var/lib/mattermost-load-test-ng"
+    local assets_dir="/mmlt/deployment/terraform/assets"
+
+    echo "[INFO]: Checking Terraform state files in ${terraform_state_dir}..."
+
+    declare -a terraform_files=("outputs.tf" "variables.tf" "cluster.tf" "elasticsearch.tf" 
+                                "datasource.yaml" "dashboard.yaml" 
+                                "default_dashboard_tmpl.json" "coordinator_dashboard_tmpl.json" 
+                                "es_dashboard_data.json" "redis_dashboard_data.json" 
+                                "keycloak.service" "saml-idp.crt")
+
+    # Iterate through the files and check if they exist
+    for file in "${terraform_files[@]}"; do
+        if [ ! -f "${terraform_state_dir}/${file}" ]; then
+            echo "[INFO]: ${file} is missing in ${terraform_state_dir}. Copying from assets..."
+            cp "${assets_dir}/${file}" "${terraform_state_dir}/"
+        else
+            echo "[INFO]: ${file} already exists in ${terraform_state_dir}. Skipping copy."
+        fi
+    done
+
+    # Check if the "provisioners" directory exists
+    if [ ! -d "${terraform_state_dir}/provisioners" ]; then
+        echo "[INFO]: 'provisioners' directory is missing. Copying from assets..."
+        cp -r "${assets_dir}/provisioners" "${terraform_state_dir}/"
+    else
+        echo "[INFO]: 'provisioners' directory already exists. Skipping copy."
+    fi
+}
+
 echo "[INFO]: Initializing Load Test Shell v$MMLT_SHELL_VERSION ..."
 _sshAgent
 _checkConfig
@@ -122,6 +153,7 @@ _checkTerraform
 _checkAWS
 _checkLicense
 _systemSetup
+_check_and_copy_terraform_state
 echo "[INFO]: Setup Complete. Starting Shell ..."
 
 # Pass control to the CMD
