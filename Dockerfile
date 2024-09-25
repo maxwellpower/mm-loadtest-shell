@@ -81,7 +81,7 @@ RUN mkdir -p /mmlt/dist/build/mattermost-load-test-ng-linux-amd64/bin && mkdir -
     && tar -C /mmlt/dist/build/ -czf /mmlt/dist/mattermost-load-test-ng-linux-amd64.tar.gz mattermost-load-test-ng-linux-amd64 \
     && rm -rf /mmlt/dist/build/ \
     && rm -rf /mmlt/.git /mmlt/.github /mmlt/config/*.sample.* \
-    && rm -rf .editorconfig .gitignore .gitignore .gitignore Dockerfile Makefile api/ cmd/ comparison/ coordinator/ defaults/ deployment/ examples/ go.mod go.sum loadtest/ logger/ performance/
+    && rm -rf .editorconfig .gitignore .gitignore .gitignore Dockerfile Makefile api/ cmd/ comparison/ coordinator/ defaults/ examples/ go.mod go.sum loadtest/ logger/ performance/
 
 # STAGE 3: Final stage
 FROM debian:${DEBIAN_VERSION} AS final
