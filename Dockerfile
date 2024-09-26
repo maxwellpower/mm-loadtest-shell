@@ -59,6 +59,7 @@ RUN apt-get update && \
     git && \
     rm -rf /var/lib/apt/lists/*
 
+ADD https://api.github.com/repos/mattermost/mattermost-load-test-ng/git/refs/heads/${MMLT_VERSION} version.json
 RUN git clone --depth=1 --branch ${MMLT_VERSION} --no-tags https://github.com/mattermost/mattermost-load-test-ng.git /mmlt \
     && cp -r /mmlt/config/ /mmlt/config.default
 

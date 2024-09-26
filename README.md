@@ -87,6 +87,14 @@ Where `<target>` can be `coordinator`, `proxy`, `metrics`, or any instance name.
 ltctl ssh list
 ```
 
+## Environment Variables
+
+### Default Editor
+
+The defaut editor used in the shell is `nano` to use `vi` update your docker run command to add the `DEFAULT_EDITOR` variable.
+
+- `-e DEFAULT_EDITOR=vi`
+
 ## Manually build image
 
 To build the image locally, clone this repository, then run docker build. The command below will overwrite the public image with your local build.
