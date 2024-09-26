@@ -113,6 +113,7 @@ RUN apt-get update && \
     openssh-client \
     nano \
     jq \
+    vim \
     traceroute \
     postgresql-client \
     curl \

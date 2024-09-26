@@ -141,6 +141,14 @@ function _warn_license {
   fi
 }
 
+function set_default_editor {
+  if [ -z "${DEFAULT_EDITOR}" ]; then
+    EDITOR="nano"
+  else
+    EDITOR="${DEFAULT_EDITOR}"
+  fi
+}
+
 function _main_menu {
   while true; do
     echo -e "\033[1;36mPlease choose an option:\033[0m"
@@ -213,11 +221,11 @@ function _config_menu {
     read -p "Select an option [1-6]: " config_option
 
     case $config_option in
-    1) mmlt_cfg ;; # Assuming `mmlt_cfg` is a predefined function to configure settings
-    2) nano /mmlt/config/deployer.json ;;
-    3) nano /mmlt/config/coordinator.json ;;
-    4) nano /mmlt/config/config.json ;;
-    5) nano /mmlt/config/credentials ;;
+    1) mmlt_cfg ;;
+    2) $EDITOR /mmlt/config/deployer.json ;;
+    3) $EDITOR /mmlt/config/coordinator.json ;;
+    4) $EDITOR /mmlt/config/config.json ;;
+    5) $EDITOR /mmlt/config/credentials ;;
     6) break ;;
     *) echo -e "\033[1;31mInvalid option. Please select again.\033[0m" ;;
     esac
