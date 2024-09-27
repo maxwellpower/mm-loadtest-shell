@@ -130,18 +130,15 @@ function _check_and_copy_terraform_state {
     # Iterate through the files and check if they exist
     for file in "${terraform_files[@]}"; do
         if [ ! -f "${terraform_state_dir}/${file}" ]; then
-            echo "[INFO]: ${file} is missing in ${terraform_state_dir}. Copying from assets..."
-            if cp "${assets_dir}/${file}" "${terraform_state_dir}/"; then
-                echo "[INFO]: ${file} copied successfully."
-            else
+            if ! cp "${assets_dir}/${file}" "${terraform_state_dir}/"; then
                 echo "[ERROR]: Failed to copy ${file} from ${assets_dir}. Please verify the file exists."
             fi
+            echo "[INFO]: Copied Terraform Asset Files."
         fi
     done
 
     # Check if the "provisioners" directory exists
     if [ ! -d "${terraform_state_dir}/provisioners" ]; then
-        echo "[INFO]: 'provisioners' directory is missing. Copying from assets..."
         if cp -r "${assets_dir}/provisioners" "${terraform_state_dir}/"; then
             echo "[INFO]: 'provisioners' directory copied successfully."
         else
